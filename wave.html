@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script src="js/shapes.js"></script>
+		<script src="js/requestNextAnimationFrame.js" ></script>
+		<script>
+			function initialize(){
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				var circle = new Circle(600, 300, 200);
+				
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';
+				function drawBackground(){
+					context.save();
+					context.fillStyle = 'rgba(255, 255, 255, 1)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				
+				var waveY = circle.y;
+				var up = true;
+				function drawWave(){
+					// (circle.x - x)^2 + (circle.y-waveY)^2 = circle.radius^2;
+					// 即： (circle.x - x)^2 +  = circle.radius^2 - (circle.y-waveY)^2;
+					
+					var v = Math.pow(circle.radius, 2)-Math.pow(circle.y-waveY, 2);
+					x = circle.x - Math.sqrt(v);
+					
+					context.beginPath();
+					context.moveTo(x, waveY);
+					context.lineTo(2*circle.x-x, waveY);
+					
+					var angle = Math.asin((waveY-circle.y)/circle.radius);
+					context.arc(circle.x, circle.y, circle.radius, angle, Math.PI-angle, false);
+					context.stroke();
+				}
+				
+				var wavaDeltaY = 2;
+				function draw(time){
+					drawBackground();
+					if(true == up){
+						waveY -= wavaDeltaY;
+						if(waveY<circle.y-circle.radius/2){
+							up = false;
+						}
+						
+					}else{
+						waveY += wavaDeltaY;
+						if(waveY>circle.y+circle.radius/2){
+							up = true;
+						}
+					}
+					//circle.stroke(context);
+					drawWave();
+					requestNextAnimationFrame(draw);
+					
+					
+				}
+				
+				requestNextAnimationFrame(draw);
+				
+			}
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+</html>

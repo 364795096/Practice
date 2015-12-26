@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body {
+				background: lightgray;
+			}
+			
+			* {
+				margin: 0;
+				-webkit-tap-highlight-color: rgba(0,0,0,0);
+			}
+			
+			#canvas {
+				background: white;
+				
+			}
+			
+			#glassPane {
+				position: absolute;
+				margin: 10px;
+				left: 0;
+				top: 0;
+				background: rgb(89, 204, 234);
+				padding: 10px;
+				width: 200px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px black;
+				opacity: 0.75;
+				overflow: hidden;
+			}
+			#firedCount{
+				width: 180px;
+				margin-bottom: 12px;
+			}
+			#fps{
+				font-size: 20px;
+			}
+		</style>
+
+		<script src="js/shapes.js"></script>
+		<script src="js/sprites.js"></script>
+		<script src="js/requestNextAnimationFrame.js"></script>
+		<script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+
+		<script>
+			var glassPane = null;
+			var glassPaneTransInterval = undefined;
+
+			function shrinkGentley() {
+				var width = $('#glassPane').width();
+				var height = $('#glassPane').height();
+				width = width * 0.9;
+				height = height * 0.9;
+				if (height < 21 || width < 28) {
+					clearInterval(glassPaneTransInterval);
+					glassPaneTransInterval = undefined;
+					$('#glassPane').css("width", "15px");
+					$('#glassPane').css("height", "20px");
+					$('#glassPane').css("opacity", "0.75");
+				} else {
+					$('#glassPane').css("width", width + "px");
+					$('#glassPane').css("height", height + "px");
+				}
+			}
+
+			function magnifyGentley() {
+				var width = $('#glassPane').width();
+				var height = $('#glassPane').height();
+				$('#glassPane').css("opacity", "0.75");
+				if ( 20 > width || 15 > height) {
+					width = 20;
+					height = 15;
+				}
+				width = width * 1.25;
+				height = height * 1.25;
+				if (height >= 200 || width >= 150) {
+					clearInterval(glassPaneTransInterval);
+					glassPaneTransInterval = undefined;
+					$('#glassPane').css("width", "200px");
+					$('#glassPane').css("height", "150px");
+				} else {
+					$('#glassPane').css("width", Math.ceil(width) + "px");
+					$('#glassPane').css("height", Math.ceil(width * 0.75) + "px");
+				}
+			}
+			var folded = false;
+			var intervalShrinkMagnify = 10;
+			function setFoldUnfoldPaneBehavior() {
+				glassPane.onclick = function(e) {
+					//已经折叠，展开之
+					if (true == folded) {
+						folded = false;
+						//iconFold.innerHTML = "-";
+						if (undefined != glassPaneTransInterval) {
+							clearInterval(glassPaneTransInterval);
+						}
+						glassPaneTransInterval = setInterval(function() {
+							magnifyGentley();
+						}, intervalShrinkMagnify);
+					} else {
+						folded = true;
+						//iconFold.innerHTML = "+";
+						if (undefined != glassPaneTransInterval) {
+							clearInterval(glassPaneTransInterval);
+						}
+						glassPaneTransInterval = setInterval(function() {
+							shrinkGentley();
+							
+						}, intervalShrinkMagnify);
+					}
+				}
+			}
+
+			function windowToCanvas(canvas, x, y) {
+				var bbox = canvas.getBoundingClientRect();
+				var canvasLoc = {
+					x: (x - bbox.left) * (canvas.width / bbox.width),
+					y: (y - bbox.top) * (canvas.height / bbox.height)
+				};
+				return canvasLoc;
+			}
+
+			function initialize() {
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				glassPane = document.getElementById("glassPane");
+				setFoldUnfoldPaneBehavior();
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw + 'px';
+				canvas.style.height = bw / 2 + 'px';
+				
+				var needleFired = 0;
+				var fps = 0;
+				
+				function updatePaneInfo(){
+					$('#firedCount').html("已经发射的钢针数量: " + needleFired);
+					$('#fps').html("FPS: "+ fps);
+				}
+				var canvasScale = canvas.width / canvas.offsetWidth;
+				var circle = new Circle(300, 120, 60);
+				circle.fillStyle = 'rgba(37, 102, 178, 0.9)';
+				var needleSpritesArray = [];
+				var needle = new Polygon(context.strokeStyle, context.fillStyle, false);
+				var points = [];
+				var needlePoints = [
+					new Point(300, 260),
+					new Point(301, 300), new Point(299, 300)
+				];
+				needle.setPoints(needlePoints);
+				//needle.stroke(context);
+				var needlePainter = {
+					paint: function(spirite, context) {
+						spirite.shape.stroke(context);
+					}
+				};
+				var needleFlight = {
+					updatePosition: function(spirite, deltaTime) {
+						if (undefined != spirite.velocityX && undefined != spirite.velocityY) {
+							spirite.shape.move(spirite.velocityX * deltaTime, spirite.velocityY * deltaTime);
+						}
+					},
+					execute: function(spirite, context, time) {
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						this.updatePosition(spirite, elapsedFrameTime);
+						spirite.lastTime = time;
+					},
+				};
+				var needleRotate = {
+					anglarVelocity: Math.PI / 8,
+					updatePosition: function(spirite, deltaTime) {
+						spirite.shape.rotate(new Point(circle.x, circle.y), this.anglarVelocity * deltaTime);
+					},
+					execute: function(spirite, context, time) {
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						this.updatePosition(spirite, elapsedFrameTime);
+						spirite.lastTime = time;
+					},
+				};
+				var launchPadPoints = [
+					new Point(250, 260), new Point(350, 260),
+					new Point(350, 300), new Point(250, 300)
+				];
+				var fireButtonPoints = [
+					new Point(300, 268), new Point(315, 290),
+					new Point(285, 290)
+				];
+				var launchPad = new Polygon(context.strokeStyle, 'rgba(220, 92, 0, 1)', false);
+				var fireButton = new Polygon(context.strokeStyle, 'rgba(255, 26, 0, 0.9)', false);
+				var fireButtonHolded = false;
+				
+				var dateTimeMinusAnimateTime = -1;
+
+				function drawLaunchPad() {
+					launchPad.setPoints(launchPadPoints);
+					launchPad.stroke(context);
+					launchPad.fill(context);
+					fireButton.setPoints(fireButtonPoints);
+					context.save();
+					//context.shadowColor = 'rgba(185, 61, 67, 0.9)';
+					context.shadowColor = 'rgba(0, 0, 0, 0.9)';
+					context.shadowOffsetX = 1;
+					context.shadowOffsetY = 1;
+					context.shadowBlur = 2;
+					fireButton.stroke(context);
+					if (true == fireButtonHolded) {
+						fireButton.fillStyle = 'rgba(255, 26, 0, 0.9)';
+					} else {
+						fireButton.fillStyle = 'rgba(5, 191, 0, 0.9)';
+					}
+					fireButton.fill(context);
+					context.restore();
+				}
+				// 不妨做这样的设定：多边形超出边界的距离超过200 pixel，才可认定，已经完全超出Canvas的区域
+				var validCanvasAreaPoints = [new Point(-200, -200), new Point(canvas.width + 200, -200),
+					new Point(canvas.width + 200, canvas.height + 200), new Point(-200, canvas.height + 200)
+				];
+				var validCanvasAreaPolygon = new Polygon(context.strokeStyle, context.fillStyle, false);
+				validCanvasAreaPolygon.setPoints(validCanvasAreaPoints);
+
+				function isPolygonOutOfCanvas(polygon) {
+					for (var i = 0; i < polygon.points.length; i++) {
+						if (validCanvasAreaPolygon.isPointInPath(context, polygon.points[i].x, polygon.points[i].y)) {
+							return false;
+						}
+						return true;
+					}
+				}
+				//*/
+				// 测试代码
+				var testPolygon = new Polygon(context.strokeStyle, context.fillStyle, false);
+				var validCanvasAreaPoints = [new Point(200, 100), new Point(300, -230), new Point(302, -203)];
+				testPolygon.setPoints(validCanvasAreaPoints);
+				//*/
+				//alert(isPolygonOutOfCanvas(testPolygon));
+				canvas.onmousedown = function(e) {
+					var x = e.x || e.clientX;
+					var y = e.y || e.clientY;
+					var loc = windowToCanvas(canvas, x, y);
+					if (launchPad.isPointInPath(context, loc.x, loc.y)) {
+						fireButtonHolded = true;
+					}
+				}
+				canvas.onmouseup = function(e) {
+					fireButtonHolded = false;
+					var x = e.x || e.clientX;
+					var y = e.y || e.clientY;
+					var loc = windowToCanvas(canvas, x, y);
+					if (launchPad.isPointInPath(context, loc.x, loc.y)) {
+						var needleNew = new Polygon(context.strokeStyle, context.fillStyle, false);
+						needleNew.setPoints(needlePoints);
+						var needleSpriteNew = new Sprite('needleSprite_' + (new Date).getTime(), needlePainter, [needleFlight]);
+						needleSpriteNew.velocityX = 0;
+						needleSpriteNew.velocityY = -1024;
+						needleSpriteNew.setShape(needleNew);
+						
+						needleSpritesArray.push(needleSpriteNew);
+						
+						needleFired++;
+
+					}
+				}
+				setInterval(function(){
+					updatePaneInfo();
+				}, 500);
+				
+				var needleSprite = new Sprite('needle', needlePainter, [needleFlight]);
+				needleSprite.velocityX = 0;
+				needleSprite.velocityY = -1024;
+				needleSprite.setShape(needle);
+				var count = 0;
+				
+
+				function pickOutInvalidPolygons() {
+					for (var i = 0; i < needleSpritesArray.length; i++) {
+						if (isPolygonOutOfCanvas(needleSpritesArray[i].shape)) {
+							needleSpritesArray[i] = undefined;
+						}
+					}
+					var needleSpritesArrayNew = [];
+					for (var i = 0; i < needleSpritesArray.length; i++) {
+						if (undefined != needleSpritesArray[i]) {
+							needleSpritesArrayNew.push(needleSpritesArray[i]);
+						}
+					}
+					needleSpritesArray = undefined;
+					needleSpritesArray = needleSpritesArrayNew;
+				}
+				var lastTime = 0;
+				
+				function animate(time) {
+					var dateTime = (new Date).getTime();
+					dateTimeMinusAnimateTime = dateTime-time;
+					var deltaTime = time - lastTime;
+					fps = Math.ceil(1/deltaTime*1000);
+					
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					// 将已经在Canvas区域之外的多边形剔除出去
+					pickOutInvalidPolygons();
+					for (var i = 0; i < needleSpritesArray.length; i++) {
+						needleSpritesArray[i].update(context, time);
+						var sprite = needleSpritesArray[i];
+						var shape = needleSpritesArray[i].shape;
+						// y方向上的速度不为零，且与圆发生了碰撞
+						if (sprite.velocityY != 0 && shape.points[0].y < (circle.y + circle.radius)) {
+							sprite.behaviors = [];
+							// 针往运动的相反方向回退一点，以免使得有些针看起来插入的太深
+							shape.move(0, -(shape.points[0].y - (circle.y + circle.radius))-1);
+							sprite.behaviors.push(needleRotate);
+							sprite.velocityY = 0;
+						}
+						needleSpritesArray[i].paint(context);
+					}
+					circle.stroke(context);
+					circle.fill(context);
+					drawLaunchPad();
+					if (count < 60000) {
+						window.requestNextAnimationFrame(animate);
+					}
+					count++;
+					lastTime = time;
+				}
+				window.requestNextAnimationFrame(animate);
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()">
+		<canvas id="canvas" width="600" height="300"></canvas>
+		<div id="glassPane">
+			<p id="firedCount"></p>
+			<p id="fps"></p>
+		</div>
+	</body>
+
+</html>

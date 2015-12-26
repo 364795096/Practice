@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body {
+				background: lightgray;
+			}
+			
+			* {
+				margin: 0;
+			}
+			
+			#canvas {
+				background: lightgray;
+			}
+			
+			#iconCanvas {
+				border: 1px solid lightgrey;
+				border-radius: 4px;
+				box-shadow: 0 0 8px darkgrey;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				user-select: none;
+				position: absolute;
+				top: 0;
+				left: 0;
+				background: white;
+			}
+			
+			#glassPane {
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+			
+			.slider {
+				width: 200px;
+				height: 30px;
+			}
+			
+			#redSliderDiv {
+				position: absolute;
+				left: 40px;
+				top: 48px;
+			}
+			
+			#greenSliderDiv {
+				position: absolute;
+				left: 40px;
+				top: 84px;
+			}
+			
+			#blueSliderDiv {
+				position: absolute;
+				left: 40px;
+				top: 120px;
+			}
+			
+			#alphaSliderDiv {
+				position: absolute;
+				left: 40px;
+				top: 156px;
+			}
+		</style>
+		<script type="text/javascript" src="js/shapes.js"></script>
+		<script type="text/javascript" src="js/requestNextAnimationFrame.js"></script>
+		<script type="text/javascript" src="js/bezierPath.js"></script>
+		<script type="text/javascript" src="js/iconToolBar.js"></script>
+		<script type="text/javascript" src="js/popupWindow.js"></script>
+		<script src='js/roundedRectangle.js'></script>
+		<script type="text/javascript" src="js/slider.js"></script>
+		<script type="text/javascript" src="js/bezierCurveTest.js" ></script>
+		<script>
+			function windowToCanvas(canvas, x, y, scale, tranX, tranY) {
+				var bbox = canvas.getBoundingClientRect();
+				var canvasLoc = {
+					x: ((x - bbox.left) * (canvas.width / bbox.width)-scale*tranX)/scale,
+					y: ((y - bbox.top) * (canvas.height / bbox.height)-scale*tranY)/scale
+				};
+				return canvasLoc;
+			}
+			
+			function drawBackground(canvas) {
+				var context = canvas.getContext("2d");
+				context.save();
+				context.fillStyle = 'white';
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				context.strokeStyle = 'red';
+				context.strokeRect(0, 0, canvas.width, canvas.height);
+				context.restore();
+			}
+
+			function initialize() {
+				var canvas = document.getElementById("canvas");
+				context = canvas.getContext("2d");
+				canvas.style.cursor = 'url("images/pen1.png")';
+				canvas.style.cursor = 'crosshair';
+				var scale = 1;
+				var translateX = 0;
+				var translateY = 0;
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw + 'px';
+				canvas.style.height = bw / 2 + 'px';
+				
+				initComponent();
+				
+				bezierPath = new BezierPath();
+
+				function animate(time) {
+					drawBackground(canvas);
+					bezierPath.showPath(context);
+					window.requestNextAnimationFrame(animate);
+				}
+				window.requestNextAnimationFrame(animate);
+
+				function getCanvasLocation(e) {
+					var x = e.x || e.clientX;
+					var y = e.y || e.clientY;
+					var loc = windowToCanvas(canvas, x, y, scale, translateX, translateY);
+					return loc;
+				}
+				var selectedCurve = undefined;
+				var selectedCurveIndex = -1;
+				var selectedBezierPoint = undefined;
+				var justDraggedBezierPoint = false;
+				var curveSelectionTestResult = undefined;
+				var mouseRightButtonDown = false;
+				var interactionProcessor = [];
+				
+				var dragParam = undefined;
+				var DefaultProcessor = function() {}
+				DefaultProcessor.prototype.onClick = function(e) {};
+				DefaultProcessor.prototype.onMouseDown = function(e) {
+					
+				};
+				DefaultProcessor.prototype.onMouseMove = function(e) {
+					
+				};
+				DefaultProcessor.prototype.onMouseUp = function(e) {
+					dragParam = undefined;
+				};
+				DefaultProcessor.prototype.onDblClick = function(e) {};
+				var penProcessor = {
+					onClick: function(e) {
+						var loc = getCanvasLocation(e);
+						if (false == justDraggedBezierPoint) {
+							selectedCurve = undefined;
+						} else {
+							// 避免拖动了控制点之后，已被选择的曲线失去选择
+							justDraggedBezierPoint = false;
+							return;
+						}
+						var testResult = bezierPath.curveSelectionTest(loc.x, loc.y);
+						if (undefined != testResult) {
+							selectedCurve = testResult.curve;
+							selectedCurveIndex = testResult.index;
+						}
+					},
+					onMouseDown: function(e) {
+						var loc = getCanvasLocation(e);
+						e.preventDefault();
+						if (0 == e.button) {
+							if (undefined != selectedCurve) {
+								// 如果没有点中，则返回undefined
+								selectedBezierPoint = selectedCurve.hitBezierPoint(loc.x, loc.y);
+								canvas.style.cursor = 'pointer';
+							} else {
+								selectedBezierPoint = undefined;
+							}
+						} else if (2 == e.button) {
+							mouseRightButtonDown = true;
+						}
+					},
+					onMouseMove: function(e) {
+						var loc = getCanvasLocation(e);
+						if (undefined != selectedBezierPoint) {
+							bezierPath.updateBezierPoint({
+								x: loc.x,
+								y: loc.y,
+								pointIndex: selectedBezierPoint.index,
+								curveIndex: selectedCurveIndex
+							});
+							justDraggedBezierPoint = true;
+						}
+					},
+					onMouseUp: function(e) {
+						e.preventDefault();
+						selectedBezierPoint = undefined;
+						canvas.style.cursor = 'crosshair';
+						if (mouseRightButtonDown) {
+							mouseRightButtonDown = false;
+							bezierPath.closePath();	
+						}
+					},
+					onDblClick: function(e) {
+						var loc = getCanvasLocation(e);
+						bezierPath.push({
+							x: loc.x,
+							y: loc.y
+						});
+					}
+				}
+				var fillerProcessor = function() {}
+				fillerProcessor.prototype = new DefaultProcessor();
+				fillerProcessor.prototype.onClick = function(e) {
+					bezierPath.fill(getFillColorStyle());
+				}
+				var colorProcessor = function() {}
+				colorProcessor.prototype = new DefaultProcessor();
+				colorProcessor.prototype.onClick = function(e) {}
+				
+				var ZoomInProcessor = function() {}
+				ZoomInProcessor.prototype = new DefaultProcessor();
+				ZoomInProcessor.prototype.onClick = function(e) {
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					context.scale(1.25, 1.25);
+					scale *= 1.25;
+					translateX /= 1.25;
+					translateY /= 1.25;
+					context.clearRect(0, 0, canvas.width, canvas.height);
+				}
+				var ZoomOutProcessor = function() {} // 缩小
+				ZoomOutProcessor.prototype = new DefaultProcessor();
+				ZoomOutProcessor.prototype.onClick = function(e) {
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					context.scale(0.8, 0.8);
+					scale *= 0.8;	
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					translateX /= 0.8;
+					translateY /= 0.8;
+				}
+				
+				
+				var DragProcessor = function() {}
+				DragProcessor.prototype = new DefaultProcessor();
+				DragProcessor.prototype.onMouseDown = function(e) {
+					dragParam = {loc: getCanvasLocation(e)};
+				};
+				
+				DragProcessor.prototype.onMouseUp = function(e) {
+					loc = getCanvasLocation(e);
+					var dx = loc.x - dragParam.loc.x;
+					var dy = loc.y - dragParam.loc.y;
+					
+					console.log("drag, dx: "+dx+", dy: "+dy);
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					translateX += dx/scale;
+					translateY += dy/scale;
+					context.translate((dx/scale), dy/scale);
+					dragParam = undefined;
+				};
+				
+				interactionProcessor[0] = penProcessor;
+				interactionProcessor[1] = new fillerProcessor();
+				interactionProcessor[2] = new DefaultProcessor();
+				interactionProcessor[3] = new colorProcessor();
+				interactionProcessor[4] = new ZoomInProcessor();
+				interactionProcessor[5] = new ZoomOutProcessor();
+				interactionProcessor[6] = new DragProcessor();
+				canvas.onclick = function(e) {
+					if (iconSelectionIndex < interactionProcessor.length) {
+						interactionProcessor[getSelectedIconIndex()].onClick(e);
+					}
+				}
+				canvas.onmousedown = function(e) {
+					if (iconSelectionIndex < interactionProcessor.length) {
+						interactionProcessor[getSelectedIconIndex()].onMouseDown(e);
+					}
+				}
+				canvas.onmousemove = function(e) {
+					if (iconSelectionIndex < interactionProcessor.length) {
+						interactionProcessor[getSelectedIconIndex()].onMouseMove(e);
+					}
+				}
+				canvas.oncontextmenu = function(e) {
+					e.preventDefault();
+				}
+				canvas.onmouseup = function(e) {
+					if (iconSelectionIndex < interactionProcessor.length) {
+						interactionProcessor[getSelectedIconIndex()].onMouseUp(e);
+					}
+				}
+				canvas.ondblclick = function(e) {
+					if (iconSelectionIndex < interactionProcessor.length) {
+						interactionProcessor[getSelectedIconIndex()].onDblClick(e);
+					}
+				}
+				
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()" id="mainBody" style="position: relative;">
+		<canvas id="iconCanvas" width="100" height="400"></canvas>
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="colorPicker">
+			<div id='redSliderDiv' class='slider'></div>
+			<div id='greenSliderDiv' class='slider'></div>
+			<div id='blueSliderDiv' class='slider'></div>
+			<div id='alphaSliderDiv' class='slider'></div>
+		</div>
+	</body>
+
+</html>

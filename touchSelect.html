@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		
+		<script>
+			var ORG_SCALE = 0.56;
+			var currentScale = 0.56;
+			var touchStartParam = {
+				x1: 0,
+				y1: 0,
+				x2: 0, 
+				y2: 0,
+				startScale: ORG_SCALE
+			}
+			var twoPointsTouch = false;
+			
+			function windowToCanvas(canvas, x, y) {
+			   var canvasRectangle = canvas.getBoundingClientRect();
+			   
+			   return {
+			             x: x - canvasRectangle.left,
+			             y: y - canvasRectangle.top
+			          };
+			}
+			function showTouchStartParam(e){
+				var strShow = "";
+				strShow += (" " + touchStartParam.touchesCount + "点触控");
+				var strShow ="";	
+				for(var i=0; i<e.touches.length; i++){
+					strShow += ("(" + e.touches[i].clientX+", "+ e.touches[i].clientY+")");
+				}
+				document.getElementById("tipStart").innerHTML = strShow;
+			}
+			function showTouchMoveParam(e){
+				var strShow ="";	
+				for(var i=0; i<e.touches.length; i++){
+					strShow += ("(" + e.touches[i].clientX+", "+ e.touches[i].clientY+")");
+				}
+				document.getElementById("tip").innerHTML = strShow;
+			}
+			
+			function initialize(){
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				drawBackground();
+				var gloabeScale = 1;
+				var imageData,
+					imageDataCopy = context.createImageData(canvas.width, canvas.height);
+				
+				// 浏览器窗口适配
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';
+				
+				var canvasScale = canvas.width/canvas.offsetWidth;
+				document.getElementById("canvasScale").innerHTML = 
+				"Canvas，绘图表面宽高:("+canvas.width+", "+canvas.height+
+				"), 窗口区域宽高:("+canvas.offsetWidth+", "+canvas.offsetHeight+")";
+				var image = new Image();
+				image.src="images/diaochan.jpg";
+				image.onload = function(){				
+					myDrawImage(ORG_SCALE);
+				};
+				
+				function drawBackground(){
+					context.save();			
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					context.fillStyle = 'rgb(255, 255, 255)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				
+				function drawRectangle(pt1, pt2){
+					context.save();		
+					context.lineWidth = 2;
+					context.strokeStyle = "rgba(22, 169, 239, 0.9)";
+					var x = (pt1.x<pt2.x) ? pt1.x : pt2.x;
+					var y = (pt1.y<pt2.y) ? pt1.y : pt2.y;
+					var w = Math.abs(pt1.x-pt2.x);
+					var h = Math.abs(pt1.y-pt2.y);
+					context.strokeRect(x, y, w, h);
+					context.restore();
+				}
+				
+				function captureImageData(){
+					imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+					for(var i=0; i<3; i++){
+						imageDataCopy.data[i] = imageData.data[i];
+					}
+					
+					for(var i=3; i<imageData.data.length; i+=4){
+						imageDataCopy.data[i] = imageData.data[i]/2;
+						imageDataCopy.data[i+1] = imageData.data[i+1];
+						imageDataCopy.data[i+2] = imageData.data[i+2];
+						imageDataCopy.data[i+3] = imageData.data[i+3];
+					}
+				}
+				
+				canvas.ontouchstart = function(e){	
+					e.preventDefault();
+					touchStartParam.x1 = e.touches[0].clientX;
+					touchStartParam.y1 = e.touches[0].clientY;
+					touchStartParam.touchesCount = e.touches.length;
+					if(e.touches.length == 2){
+						twoPointsTouch = true;
+						touchStartParam.x1 = e.touches[0].clientX, 
+						touchStartParam.y1 = e.touches[0].clientY;
+						touchStartParam.x2 = e.touches[1].clientX, 
+						touchStartParam.y2 = e.touches[1].clientY;
+						touchStartParam.startScale = currentScale;
+					}
+					else{
+						twoPointsTouch = false;
+					}
+					touchStartParam.time = (new Date).getTime();
+					drawBackground();
+					myDrawImage(currentScale);
+					showTouchStartParam(e);
+				}
+				
+				canvas.ontouchmove = function(e){
+					e.preventDefault();
+					drawBackground();
+					var scaleTip = document.getElementById("scale");
+					scaleTip.innerHTML = "";
+					var pt1 = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+					var pt2 = {x: 0, y: 0};
+					if(2 == e.touches.length){
+						pt2 = {x: e.touches[1].clientX, y: e.touches[1].clientY};						
+						var w0 = Math.abs(touchStartParam.x1-touchStartParam.x2);
+						var h0 = Math.abs(touchStartParam.y1-touchStartParam.y2);
+						
+						var w1 = Math.abs(pt1.x-pt2.x);
+						var h1 = Math.abs(pt1.y-pt2.y);
+						scaleTip.innerHTML = "w0: "+w0+", h0: "+h0;
+						var scaleX = w1/w0;
+						var scaleY = h1/h0;
+						
+						var scale = scaleX>scaleY?scaleX:scaleY;
+						scaleTip.innerHTML = "放大倍数：" + scale*touchStartParam.startScale;
+						myDrawImage(scale*touchStartParam.startScale);
+						currentScale = scale*touchStartParam.startScale;
+						//drawRectangle(pt1, pt2);		
+					}else{
+						var loc1 = windowToCanvas(canvas, touchStartParam.x1, touchStartParam.y1);
+						var loc2 = windowToCanvas(canvas, pt1.x, pt1.y);
+						myDrawImage(currentScale);
+						//captureImageData();
+						
+						
+						loc1 = {x: loc1.x*canvasScale, y: loc1.y*canvasScale};
+						loc2 = {x: loc2.x*canvasScale, y: loc2.y*canvasScale};
+						
+						var dirtyX = Math.min(loc1.x, loc2.x);
+						var dirtyY = Math.min(loc1.y, loc2.y);
+						var dirtyWidth = Math.abs(loc1.x-loc2.x);
+						var dirtyHeight = Math.abs(loc1.y-loc2.y);
+						//context.putImageData(imageDataCopy, 0, 0, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
+						drawRectangle(loc1, loc2);
+						
+						context.save();
+						context.fillStyle = "rgba(255, 0, 0, 0.6)";
+						context.beginPath();
+						context.moveTo(0, 0);
+						context.lineTo(canvas.width, 0);
+						context.lineTo(canvas.width, canvas.height);
+						context.lineTo(0, canvas.height);
+						context.lineTo(0, 0);
+						
+						context.moveTo(dirtyX, dirtyY);
+						context.lineTo(dirtyX, dirtyY+dirtyHeight);
+						context.lineTo(dirtyX+dirtyWidth, dirtyY+dirtyHeight);
+						context.lineTo(dirtyX+dirtyWidth, dirtyY);
+						context.lineTo(dirtyX, dirtyY);
+						
+						context.fill();
+						context.restore();
+					}
+					showTouchMoveParam(e);
+				}
+				
+				canvas.ontouchend = function(e){
+					e.preventDefault();
+					twoPointsTouch = false;
+				}
+				
+				function myDrawImage(scale){
+					var w = canvas.width,
+						h = canvas.height,
+						sw = image.width;
+						sh = image.height,
+						dw = sw*scale,
+						dh = sh*scale,
+						dx = -dw/2 + w/2,
+						dy = -dh/2 + h/2;
+						
+					context.drawImage(image, 0, 0, sw, sh, dx, dy, dw, dh);
+				}
+				
+			}
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="600" height="300"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+			<p id="canvasScale"></p>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script src="js/shapes.js" ></script>
+		<script src="js/utils.js"></script>
+		<script src="js/requestNextAnimationFrame.js" ></script>
+		<script type="text/javascript" src="js/sprites.js" ></script>
+		<script>
+			function initialize(){
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';
+				
+				
+				
+				function generate(){
+					var dotCount = 320;
+					dotInterval = 1;
+					maxTurnAngle = Math.PI/20;
+					var ppInit = new PointPair({x: 600, y: 0}, {x: 600, y: dotInterval});
+					var points = [];
+					points.push(new Point(ppInit.pt1.x, ppInit.pt1.y));
+					points.push(new Point(ppInit.pt2.x, ppInit.pt2.y));
+					var ppLast = ppInit;
+					for(var i=0; i<dotCount-1; i++){
+						var r = rand(0, 5);
+						var r2 = rand(1, 2);
+						var angle = Math.PI/180*r;
+						if(1==r2){
+							angle = -angle;
+						}
+						var ppNew = ppLast.copy();
+						ppNew.rotate(angle);
+						ppNew.move(ppLast.pt2.x - ppLast.pt1.x, ppLast.pt2.y - ppLast.pt1.y);
+						
+						points.push(new Point(ppNew.pt2.x, ppNew.pt2.y));
+						ppLast = ppNew;
+					}
+					
+					var fuse = new Line('rgba(188, 188, 188, 1)', context.fillStyle);
+					fuse.setPoints(points);
+					//fuse.stroke(context);
+					
+					return fuse;
+					
+				}
+				
+				var fuse = generate();
+				var lastTime = 0;
+				function drawBackground(){
+					context.save();
+					context.fillStyle = 'rgba(248, 228, 228, 1)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				
+				var sparkPainter = {
+					paint: function(spirite, context) {
+						if(false == spirite.dead){
+							spirite.shape.stroke(context);
+							spirite.shape.fill(context);
+						}	
+					}
+				};
+				
+				var sparkFly ={
+					updatePosition: function(spirite, deltaTime){
+						spirite.shape.move(spirite.velocityX*deltaTime, 
+							spirite.velocityY*deltaTime)
+					},
+					execute: function(spirite, context, time) {
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						this.updatePosition(spirite, elapsedFrameTime);
+						spirite.lastTime = time;
+						var age = (new Date).getTime()-spirite.bornTime;
+						var randTemp = rand(200, 400);
+						if( age> randTemp){
+							spirite.dead = true;
+						}
+					},
+				}
+				var fuses = [];
+				var sparkSprites = [];
+				function pickOutInvalidSprites(){
+					for (var i = 0; i < sparkSprites.length; i++) {
+						if (true == sparkSprites[i].dead) {
+							sparkSprites[i] = undefined;
+						}
+					}
+					var sparkSpritesNew = [];
+					for (var i = 0; i < sparkSprites.length; i++) {
+						if (undefined != sparkSprites[i]) {
+							sparkSpritesNew.push(sparkSprites[i]);
+						}
+					}
+					sparkSprites = undefined;
+					sparkSprites = sparkSpritesNew;
+					
+					for (var i = 0; i < fuses.length; i++) {
+						if (true == fuses[i].points.length <= 1) {
+							fuses[i] = undefined;
+						}
+					}
+					var fusesNew = [];
+					for (var i = 0; i < fuses.length; i++) {
+						if (undefined != fuses[i]) {
+							fusesNew.push(fuses[i]);
+						}
+					}
+					fuses = undefined;
+					fuses = fusesNew;
+				}
+				function sparkByPointPair(pp){
+					var vec = new Vector({x: pp.pt2.x-pp.pt1.x, y: pp.pt2.y-pp.pt1.y});
+					vec = vec.normalize();
+								
+					for(var i=0; i<16; i++){
+						var r = rand(0, 15);
+						var r2 = rand(1, 2);
+						var angle = Math.PI/180*r;
+						if(1==r2){
+							angle = -angle;
+						}
+						var ppNormal = new PointPair({x: 0, y: 0}, vec);
+						ppNormal.rotate(angle);
+						
+						var colors = [{r: 251, g: 254, b: 247, a: 0.98}, {r: 243, g: 208, b: 152, a: 0.7}, {r: 216, g: 140, b: 68, a: 0.7}]
+						var index = rand(0, 2);
+						color = colors[index];
+						var colorStyle = 'rgba('+color.r + ',' + color.g + ',' + color.b + ',' + color.a +')';
+						
+						var rectangle = new Polygon(colorStyle, colorStyle, false);
+						var len = rand(20, 80);
+						var points = [pp.pt2, pp.pt2, new Point(pp.pt2.x+ppNormal.pt2.x*len, pp.pt2.y+ppNormal.pt2.y*len)];
+						rectangle.setPoints(points);
+						var sparkSpriteNew = new Sprite('sparkSprite_' + (new Date).getTime(), sparkPainter, [sparkFly]);
+						sparkSpriteNew.velocityX = 250*vec.x;
+						sparkSpriteNew.velocityY = 250*vec.y;
+						sparkSpriteNew.setShape(rectangle);
+						sparkSpriteNew.dead = false;
+						sparkSpriteNew.bornTime = (new Date).getTime();
+						sparkSpriteNew.color = {r:255, g: 0, b: 0, a: 0.6};
+									
+						sparkSprites.push(sparkSpriteNew);
+					}
+					
+				}
+				
+				canvas.onclick = function(e){
+					fuses.push(generate());
+				}
+				
+				function drawFuse(time){
+					var deltaTime = time - lastTime;			
+					if(deltaTime>60){
+						for(var i=0; i<fuses.length; i++){
+							fuses[i].points.pop();					
+							len = fuses[i].points.length;
+							var len = fuses[i].points.length;
+							if(len>=2)
+							{
+								pp = new PointPair(fuses[i].points[len-2],fuses[i].points[len-1]);
+								sparkByPointPair(pp);
+							}
+						}
+						
+						lastTime = time;
+					}
+					for(var i=0; i<fuses.length; i++){
+						len = fuses[i].points.length;
+						if(len>=2){						
+							fuses[i].stroke(context);
+						}
+					}
+					
+				}
+				
+				function drawSpark(time){			
+					for (var i = 0; i < sparkSprites.length; i++) {
+						sparkSprites[i].update(context, time);
+						sparkSprites[i].paint(context);
+					}
+				}
+				
+				function animate(time) {	
+					pickOutInvalidSprites();
+					drawBackground();
+					drawFuse(time);
+					drawSpark(time);
+					window.requestNextAnimationFrame(animate);
+					
+				}
+				window.requestNextAnimationFrame(animate);
+				
+			}
+			
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script src="js/shapes.js"></script>
+		<script src="js/sprites.js"></script>
+		<script src="js/requestNextAnimationFrame.js"></script>
+		<script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+		
+		<script>
+			function initialize(){
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				var sparkSprites = [];
+				function rand(min, max){
+					return Math.floor(Math.random()*(max-min+1)+min);
+				}
+				// 绘制夜空
+				function drawBackground(){
+					context.save();
+					context.fillStyle = 'rgba(0, 0, 0, 1)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				
+				// 不妨做这样的设定：多边形超出边界的距离超过200 pixel，才可认定，已经完全超出Canvas的区域
+				var validCanvasAreaPoints = [new Point(-200, -200), new Point(canvas.width + 200, -200),
+					new Point(canvas.width + 200, canvas.height + 200), new Point(-200, canvas.height + 200)
+				];
+				var validCanvasAreaPolygon = new Polygon(context.strokeStyle, context.fillStyle, false);
+				validCanvasAreaPolygon.setPoints(validCanvasAreaPoints);
+				// 圆形是否已经超出绘图表面区域
+				function isCircleOutOfCanvas(circle) {
+					if(circle.x+circle.radius < -200){
+						return true;
+					}
+					return false;
+				}
+				// 多边形是否已经超出绘图表面区域
+				function isPolygonOutOfCanvas(polygon) {
+					for (var i = 0; i < polygon.points.length; i++) {
+						if (validCanvasAreaPolygon.isPointInPath(context, polygon.points[i].x, polygon.points[i].y)) {
+							return false;
+						}
+						return true;
+					}
+				}
+				
+				var meteorPainter = {
+					paint: function(spirite, context) {
+						if(false == spirite.dead || !spirite.dead){
+							spirite.shape.stroke(context);
+							spirite.shape.fill(context);	
+						}
+						
+					}
+				};
+				
+				var sparkPainter = {
+					paint: function(spirite, context) {
+						if(false == spirite.dead){
+							spirite.shape.stroke(context);
+							spirite.shape.fill(context);
+						}	
+					}
+				};
+				
+				
+				var sparkShine = {
+					execute: function(spirite, context, time) {
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						var age = (new Date).getTime()-spirite.bornTime;
+						var randTemp = rand(600, 1000);
+						if( age> randTemp){
+							spirite.dead = true;
+						}
+						var color = spirite.color;
+						var colorStyle = 'rgba('+color.r + ',' + color.g + ',' + color.b + ',' + color.a*(1-age/randTemp) +')';
+						spirite.shape.strokeStyle = colorStyle;
+						spirite.shape.fillStyle = colorStyle;
+						spirite.lastTime = time;
+					},
+				};
+				var pixelsPerMeter = 3; // 一米的长度对应的像素长度
+				var gravityFireworkBehavior = {
+					updatePosition: function(spirite, deltaTime) {
+						var age = (new Date).getTime()-spirite.bornTime;
+						if( age> spirite.maxAge){
+							spirite.dead = true;
+							//return;
+						}
+						if (undefined != spirite.velocityX && undefined != spirite.velocityY) {
+							var displacementY = spirite.velocityY*deltaTime+ 0.5*9.98*deltaTime*deltaTime*pixelsPerMeter;
+							spirite.velocityY = (spirite.velocityY)+9.98*deltaTime*pixelsPerMeter;
+							var lastCoord = {x: spirite.shape.x, y: spirite.shape.y};
+							spirite.shape.move(spirite.velocityX * deltaTime, displacementY);
+							var color = spirite.color;
+							color.a = (1- 0.95*age/spirite.maxAge);
+							colorStyle = 'rgba('+color.r + ',' + color.g + ',' + color.b + ',' + color.a + ')';
+							circle.fillStyle = colorStyle;
+							circle.strokeStyle = colorStyle;
+							
+							if(false == isCircleOutOfCanvas(spirite.shape)){
+								var rectangle = new Polygon(spirite.shape.strokeStyle, spirite.shape.fillStyle, false);
+								for(var i=0; i<1; i++){
+									var dx = (spirite.shape.x-lastCoord.x)/1;
+									var dy = (spirite.shape.y-lastCoord.y)/1;
+									
+									var points = [new Point(spirite.shape.x-i*dx, spirite.shape.y-i*dy),
+									new Point(spirite.shape.x-(i+1)*dx, spirite.shape.y-(i+1)*dy), 
+									new Point(spirite.shape.x-i*dx, spirite.shape.y-i*dy)
+									];
+									//console.log(""+(spirite.shape.x-i*dx)+", "+(spirite.shape.y-i*dy)+"-"+(spirite.shape.x-(i+1)*dx)+", "+(spirite.shape.y-(i+1)*dy));
+									rectangle.setPoints(points);
+									var sparkSpriteNew = new Sprite('sparkSprite_' + (new Date).getTime(), sparkPainter, [sparkShine]);
+									sparkSpriteNew.velocityX = 0;
+									sparkSpriteNew.velocityY = 0;
+									sparkSpriteNew.setShape(rectangle);
+									sparkSpriteNew.dead = false;
+									sparkSpriteNew.bornTime = (new Date).getTime();
+									sparkSpriteNew.color = spirite.color;
+									
+									sparkSprites.push(sparkSpriteNew);
+								}
+							}
+						}
+					},
+					execute: function(spirite, context, time){
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						this.updatePosition(spirite, elapsedFrameTime);
+						spirite.lastTime = time;
+					}
+					
+				}
+				var meteorFlight = {
+					updatePosition: function(spirite, deltaTime) {
+						if (undefined != spirite.velocityX && undefined != spirite.velocityY) {
+							var lastCoord = {x: spirite.shape.x, y: spirite.shape.y};
+							spirite.shape.move(spirite.velocityX * deltaTime, spirite.velocityY * deltaTime);
+							
+							if(false == isCircleOutOfCanvas(spirite.shape)){
+								var rectangle = new Polygon('rgba(255, 255, 255, 1)', 'rgba(255, 255, 255, 0.98)', false);
+								for(var i=0; i<1; i++){
+									var dx = (spirite.shape.x-lastCoord.x)/1;
+									var dy = (spirite.shape.y-lastCoord.y)/1;
+									
+									var points = [new Point(spirite.shape.x-i*dx, spirite.shape.y-i*dy),
+									new Point(spirite.shape.x-(i+1)*dx, spirite.shape.y-(i+1)*dy), 
+									new Point(spirite.shape.x-i*dx, spirite.shape.y-i*dy)
+									];
+									//console.log(""+(spirite.shape.x-i*dx)+", "+(spirite.shape.y-i*dy)+"-"+(spirite.shape.x-(i+1)*dx)+", "+(spirite.shape.y-(i+1)*dy));
+									rectangle.setPoints(points);
+									var sparkSpriteNew = new Sprite('sparkSprite_' + (new Date).getTime(), sparkPainter, [sparkShine]);
+									sparkSpriteNew.velocityX = 0;
+									sparkSpriteNew.velocityY = 0;
+									sparkSpriteNew.setShape(rectangle);
+									sparkSpriteNew.dead = false;
+									sparkSpriteNew.bornTime = (new Date).getTime();
+									
+									sparkSprites.push(sparkSpriteNew);
+								}
+								
+							}
+						}
+					},
+					execute: function(spirite, context, time) {
+						var elapsedFrameTime = (time - spirite.lastTime) / 1000;
+						if (-1 == spirite.lastTime) {
+							elapsedFrameTime = 0;
+						}
+						this.updatePosition(spirite, elapsedFrameTime);
+						spirite.lastTime = time;
+					},
+				};
+				
+				
+				
+				
+				
+				var circle =  new Circle(500, 600, 1);
+				var color = new Color(255, 255, 255, 1);
+				colorStyle = 'rgba('+color.r + ',' + color.g + ',' + color.b + ',' + '1)';
+				circle.fillStyle = colorStyle;
+				circle.strokeStyle = colorStyle;
+				var meteorSprite = new Sprite("meteor", meteorPainter, [gravityFireworkBehavior]);
+				meteorSprite.setShape(circle);
+				meteorSprite.velocityX =  60;
+				meteorSprite.velocityY = -300;
+				meteorSprite.color = color;
+				
+				var fireworkColorOptions = [[{r:221, g:32, b:62, a:1}, {r:253, g:221, b:0, a:1}], 
+				[{r:71, g:178, b:41, a:1}, {r:255, g:236, b:41, a:1}], 
+				[{r:255, g:252, b:173, a:1}, {r:217, g:236, b:174, a:1}]]
+				
+				var fireWorkSprites = [];
+				function testFireWork(){
+					playSound();
+					var bornTime = (new Date()).getTime();
+					var x = rand(400, 800);
+					var y = rand(160, 230);
+					var fireCount = rand(200, 300);
+					var index = rand(0,2);
+					var colors = fireworkColorOptions[index];
+					var colorCount = colors.length;
+					var colorSelctor = 0;
+					for(var i=0; i<fireCount; i++){
+						var circleNew =  new Circle(x, y, 1);
+						var color = new Color(colors[colorSelctor].r, colors[colorSelctor].g, 
+							colors[colorSelctor].b, colors[colorSelctor].a);
+						colorSelctor++;
+						if(colorSelctor>=colorCount){
+							colorSelctor = 0;
+						}
+						
+						colorStyle = 'rgba('+color.r + ',' + color.g + ',' + color.b + ',' + '1)';
+						circleNew.fillStyle = colorStyle;
+						circleNew.strokeStyle = colorStyle;
+						var fireworkSpriteNew = new Sprite("firework_"+i, meteorPainter, [gravityFireworkBehavior]);
+						fireworkSpriteNew.setShape(circleNew);
+						fireworkSpriteNew.color = color;
+						var angle = rand(0, 62830);
+						angle=angle/10000;
+						explosionSpeed = rand(40, 80);
+						var vX = Math.cos(angle)*explosionSpeed;
+						var vY = Math.sin(angle)*explosionSpeed;
+						
+						fireworkSpriteNew.velocityX =  vX;
+						fireworkSpriteNew.velocityY = vY-20;
+						fireworkSpriteNew.bornTime = bornTime;
+						fireworkSpriteNew.maxAge = rand(800, 5000);
+						
+						
+						fireWorkSprites.push(fireworkSpriteNew);
+					}
+					
+				}
+				
+				function playSound(){
+					var elAudio = $('<audio></audio>');
+					elAudio.attr("src", "audio/explosion.wav");
+					elAudio.attr("controls", "controls");
+					$('#audios').append(elAudio);
+					elAudio[0].play();
+					
+					setTimeout(function(){
+						elAudio.remove();
+					}, 8000);
+				}
+				
+				var meteorSprites = [];
+				function genMeteor(){
+					var positive = rand(0, 1)>0;
+					var vX = rand(100, 300);
+					var vY = rand(20, 100);
+					if(!positive){
+						vX = -vX;
+					}
+					var x = rand(0, 600);
+					var y = rand(0, 4);
+					
+					var circleNew =  new Circle(x, y, 2);
+					circleNew.fillStyle = 'rgba(255, 255, 255, 1)';
+					circleNew.strokeStyle = 'rgba(255, 255, 255, 0)';
+					var meteorSpriteNew = new Sprite("meteor", meteorPainter, [meteorFlight]);
+					meteorSpriteNew.setShape(circleNew);
+					meteorSpriteNew.velocityX = vX;
+					meteorSpriteNew.velocityY = vY;
+					
+					meteorSprites.push(meteorSpriteNew);
+				}
+				canvas.onclick = function(e){
+					//genMeteor();
+					testFireWork();
+				}
+				setInterval(function(){
+					var repeatTimes = rand(1, 4);
+					for(var i=0; i<repeatTimes;i++){
+						//genMeteor();
+					}
+				}, 1000);
+				
+				function pickOutInvalidSprites() {
+					for (var i = 0; i < meteorSprites.length; i++) {
+						if (isCircleOutOfCanvas(meteorSprites[i].shape)) {
+							meteorSprites[i] = undefined;
+						}
+					}
+					var meteorSpritesNew = [];
+					for (var i = 0; i < meteorSprites.length; i++) {
+						if (undefined != meteorSprites[i]) {
+							meteorSpritesNew.push(meteorSprites[i]);
+						}
+					}
+					meteorSprites = undefined;
+					meteorSprites = meteorSpritesNew;
+					
+					
+					for (var i = 0; i < sparkSprites.length; i++) {
+						if (isPolygonOutOfCanvas(sparkSprites[i].shape) || true == sparkSprites[i].dead) {
+							sparkSprites[i] = undefined;
+						}
+					}
+					var sparkSpritesNew = [];
+					for (var i = 0; i < sparkSprites.length; i++) {
+						if (undefined != sparkSprites[i]) {
+							sparkSpritesNew.push(sparkSprites[i]);
+						}
+					}
+					sparkSprites = undefined;
+					sparkSprites = sparkSpritesNew;
+					
+					
+					for (var i = 0; i < fireWorkSprites.length; i++) {
+						if (isCircleOutOfCanvas(fireWorkSprites[i].shape) || true == fireWorkSprites[i].dead) {
+							fireWorkSprites[i] = undefined;
+						}
+					}
+					var fireworkSpritesNew = [];
+					for (var i = 0; i < fireWorkSprites.length; i++) {
+						if (undefined != fireWorkSprites[i]) {
+							fireworkSpritesNew.push(fireWorkSprites[i]);
+						}
+					}
+					fireWorkSprites = undefined;
+					fireWorkSprites = fireworkSpritesNew;
+				}
+				
+				function drawMeteor(time){
+					pickOutInvalidSprites();
+					
+					meteorSprite.update(context, time);
+					meteorSprite.paint(context);
+					for (var i = 0; i < meteorSprites.length; i++) {
+						meteorSprites[i].update(context, time);
+						meteorSprites[i].paint(context);
+					}
+					
+					for (var i = 0; i < sparkSprites.length; i++) {
+						sparkSprites[i].update(context, time);
+						sparkSprites[i].paint(context);
+					}
+					
+					for (var i = 0; i < fireWorkSprites.length; i++) {
+						fireWorkSprites[i].update(context, time);
+						fireWorkSprites[i].paint(context);
+					}
+					
+				}
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';
+				var lastTime = 0;
+				function animate(time) {	
+					var deltaTime = time - lastTime;
+					drawBackground();
+					drawMeteor(time);
+					window.requestNextAnimationFrame(animate);
+				}
+				window.requestNextAnimationFrame(animate);
+				
+			}
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+		<div id="audios" style="display: none"></div>
+	</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body {
+				background: lightgray;
+			}
+			
+			* {
+				margin: 0;
+			}
+			
+			#surface {
+				background: white;
+				width: 600px;
+				height: 400px;
+			}
+			
+			
+			#glassPane {
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 200px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script type="text/javascript" src="js/requestNextAnimationFrame.js"></script>
+		<script type="text/javascript" src="js/shapes.js"></script>
+		<script>
+			function initialize() {
+				var space = document.getElementById("surface");
+				var surface = space.getContext("2d");
+				surface.scale(1, 1);
+				// Set Particles
+				var particles = [];
+				var particle_count = 200;
+				for (var i = 0; i < 16; i++) {
+					particles.push(new particle());
+				}
+				var time = 0;
+	
+				// shim layer with setTimeout fallback from Paul Irish
+				window.requestAnimFrame = (function() {
+					return window.requestAnimationFrame ||
+						window.webkitRequestAnimationFrame ||
+						window.mozRequestAnimationFrame ||
+						function(callback) {
+							window.setTimeout(callback, 6000 / 60);
+						};
+				})();
+
+				function particle() {
+					this.speed = {
+						x: -1 + Math.random() * 2,
+						y: -3 + Math.random() * 3
+					};
+					canvasWidth = (document.getElementById("surface").width);
+					canvasHeight = (document.getElementById("surface").height);
+					this.location = {
+						x: canvasWidth / 2,
+						y: (canvasHeight / 2) + 35
+					};
+					this.radius = .5 + Math.random() * 1;
+					this.life = 60 + Math.random() * 60;
+					this.death = this.life;
+					this.r = 80;
+					this.g = 80;
+					this.b = 80;
+					this.a = 0.1;
+				}
+
+				function ParticleAnimation() {
+					surface.globalCompositeOperation = "source-over";
+					surface.fillStyle = "white";
+					surface.fillRect(0, 0, canvasWidth, canvasHeight);
+					//surface.globalCompositeOperation = "lighter";
+					for (var i = 0; i < particles.length; i++) {
+						var p = particles[i];
+						surface.beginPath();
+						p.opacity = Math.round(p.death / p.life * 100) / 100
+						var gradient = surface.createRadialGradient(p.location.x, p.location.y, 0, p.location.x, p.location.y, p.radius);
+						gradient.addColorStop(0, "rgba("+p.r+", "+p.g+", "+p.b+", "+p.opacity+")");
+						gradient.addColorStop(0.5, "rgba(" + p.r + ", " + p.g + ", " + p.b + ", " + p.opacity + ")");
+						gradient.addColorStop(1, "rgba(" + p.r + ", " + p.g + ", " + p.b + ", 0)");
+						surface.fillStyle = gradient;
+						surface.arc(p.location.x, p.location.y, p.radius, Math.PI * 2, false);
+						surface.fill();
+						p.death--;
+						p.radius+=0.5;
+						p.location.x += (p.speed.x);
+						p.location.y += (p.speed.y);
+						//regenerate particles
+						if (p.death < 0 || p.radius < 0) {
+							//a brand new particle replacing the dead one
+							particles[i] = new particle();
+						}
+					}
+					if(particles.length<particle_count){
+						for (var i = 0; i < 2; i++) {
+							particles.push(new particle());
+						}
+					}
+					requestAnimFrame(ParticleAnimation);
+				}
+				ParticleAnimation();
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()">
+		<canvas id="surface" width="600" height="400"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body {
+				background: lightgray;
+			}
+			
+			* {
+				margin: 0;
+			}
+			
+			#canvas {
+				background: white;
+			}
+			
+			#glassPane {
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script src="js/utils.js"></script>
+		<script src="js/shapes.js"></script>
+		<script src="js/requestNextAnimationFrame.js"></script>
+		<script>
+			function initialize() {
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				var circle = new Circle(600, 300, 200);
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw + 'px';
+				canvas.style.height = bw / 2 + 'px';
+
+				function drawBackground() {
+					context.save();
+					context.fillStyle = 'rgba(255, 255, 255, 1)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				var waveY = circle.y;
+				var up = true;
+
+				function drawWave() {
+					// (circle.x - x)^2 + (circle.y-waveY)^2 = circle.radius^2;
+					// 即： (circle.x - x)^2 +  = circle.radius^2 - (circle.y-waveY)^2;
+					var v = Math.pow(circle.radius, 2) - Math.pow(circle.y - waveY, 2);
+					x = circle.x - Math.sqrt(v);
+					context.beginPath();
+					context.moveTo(x, waveY);
+					context.lineTo(2 * circle.x - x, waveY);
+					var angle = Math.asin((waveY - circle.y) / circle.radius);
+					//context.arc(circle.x, circle.y, circle.radius, angle, Math.PI-angle, false);
+					context.stroke();
+				}
+				
+				function isOutOfCircle(x, y, circle){
+					if(Math.pow(x-circle.x, 2)+Math.pow(y-circle.y, 2)> Math.pow(circle.radius, 2)){
+						return true;
+					}
+					return false;
+				}
+				
+				function chooseBySinCosAngle(angleSin, angleCos){
+					var angleRet = angleCos;
+					if(angleSin*angleCos>0 && angleSin>0 && angleCos<Math.PI/2){ // 第一象限
+						angleRet = angleSin; // 也可以是angleCos
+					}
+					else if(angleSin*angleCos<0 && angleSin<0){ // 第三象限
+						angleRet = Math.PI*2-angleCos; 
+					}
+					else if(angleSin*angleCos>0 && angleSin>0  &&angleCos>Math.PI/2){ // 第二象限
+						angleRet = angleCos; 
+					}
+					else{ // 第四象限
+						angleRet = Math.PI*2 -angleCos;
+					}
+					return angleRet;
+				}
+				var degreePerFrame = -10; // 每秒移动的度数
+				var frames = 0; // 已经播放的总帧数
+				var wavePeakMax = 10; // 波峰的最大值
+				var wavePeakMin = 6; // 波峰的最小值
+				var wavePeakBase = 8;
+				var wavePeak = (wavePeakMax+wavePeakMin)/2;
+				
+				function drawSinWave() {
+					var pt = {
+						x: circle.x - circle.radius,
+						y: circle.y
+					};
+					context.beginPath();
+					var diameter = circle.radius*2;
+					var T = 4;
+					
+					var pixelsPerDegree = diameter/(360*T);
+					var firstPoint = {x:-1, y:-1};
+					var lastPoint = {x:-1, y:-1};
+					
+					for (var i = 0; i <= 360*T; i++) {
+						var x = (circle.x-circle.radius) + i * pixelsPerDegree;
+						var y = waveY + Math.sin((i+frames*degreePerFrame) * Math.PI / 180)*wavePeak;
+						if(false == isOutOfCircle(x, y, circle)){
+							if(-1 == firstPoint.x && -1 == firstPoint.y){
+								firstPoint.x =x;
+								firstPoint.y = y;
+							}
+							lastPoint.x = x;
+							lastPoint.y = y;
+							context.lineTo(x, y);
+						}
+						
+					}
+					
+					// 修正FirstPoint和LastPoint 使其刚好在圆上
+					var vTemp = Math.pow(circle.radius,2) - Math.pow(firstPoint.y - circle.y,2);
+					firstPoint.x = circle.x - Math.sqrt(vTemp);
+					vTemp = Math.pow(circle.radius,2) - Math.pow(lastPoint.y - circle.y,2);
+					lastPoint.x = circle.x + Math.sqrt(vTemp);
+					
+					context.save();
+					context.fillStyle = 'rgba(243,34, 75, 1)';
+					var angleCos1= Math.acos((lastPoint.x-circle.x)/circle.radius);
+					var angleSin1= Math.asin((lastPoint.y-circle.y)/circle.radius);
+					
+					var angleCos2= Math.acos((firstPoint.x-circle.x)/circle.radius);	
+					var angleSin2= Math.asin((firstPoint.y-circle.y)/circle.radius);
+					
+					var angle1 = chooseBySinCosAngle(angleSin1, angleCos1);
+					var angle2 = chooseBySinCosAngle(angleSin2, angleCos2);
+
+					context.arc(circle.x, circle.y, circle.radius, angle1, angle2, false);
+					context.closePath();
+					context.fillStyle = 'rgba(0, 141, 255, 1)';
+					context.stroke();
+					context.fill();
+					context.restore();				
+					context.save();
+					context.restore();
+				}
+				var wavaDeltaY = 0.5;
+				
+				function draw(time) {					
+					drawBackground();
+					frames++;
+					wavePeak = wavePeakBase - Math.sin(time/1000)*wavePeakBase/2;
+					waveY = circle.y+Math.sin(time/1000)*24;
+					drawSinWave();
+					requestNextAnimationFrame(draw);
+				}
+				requestNextAnimationFrame(draw);
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()">
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+
+</html>

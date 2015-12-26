@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script type="text/javascript" src="js/requestNextAnimationFrame.js" ></script>
+		<script type="text/javascript" src="js/shapes.js" ></script>
+		<script>
+			
+			var Path = function(){
+				
+			}
+			Path.prototype.createPath = function(context){
+				throw 'not implemented!';
+			}
+			
+			
+			var StraightLine = function(pt1, pt2){
+				this.pt1 = {x: pt1.x, y: pt1.y};
+				this.pt2 = {x: pt2.x, y: pt2.y};
+			}
+			StraightLine.prototype = new Path();
+			StraightLine.prototype.createPath = function(context){
+				context.lineTo(this.pt2.x, this.pt2.y);	
+			}
+			
+			var Arc = function(ptCenter, radius, startAngle, endAngle){
+				this.ptCenter = {x: ptCenter.x, y: ptCenter.y};
+				this.radius = radius;
+				this.startAngle = startAngle;
+				this.endAngle = endAngle;
+			}
+			Arc.prototype = new Path();
+			Arc.prototype.createPath = function(context){
+				context.arc(this.ptCenter.x, this.ptCenter.y, this.radius, this.startAngle, this.endAngle, false);
+			}
+			
+			var BezierCurve = function(ptEndPoint1, ptEndPoint2, ptControlPoint1, ptControlPoint2){
+				this.ptEndPoint1 = {x: ptEndPoint1.x, y: ptEndPoint1.y};
+				this.ptEndPoint2 = {x: ptEndPoint2.x, y: ptEndPoint2.y};
+				this.ptControlPoint1 = {x: ptControlPoint1.x, y: ptControlPoint1.y};
+				this.ptControlPoint2 = {x: ptControlPoint2.x, y: ptControlPoint2.y};
+			}
+			
+			BezierCurve.prototype = new Path();
+			BezierCurve.prototype.createPath = function(context){
+				context.bezierCurveTo(this.ptControlPoint1.x, this.ptControlPoint1.y, 
+					this.ptControlPoint2.x, this.ptControlPoint2.y,
+				this.ptEndPoint2.x, this.ptEndPoint2.y);
+			}
+			Arc.prototype = new Path();
+			Arc.prototype.createPath = function(context){
+				context.arc(this.ptCenter.x, this.ptCenter.y, this.radius, this.startAngle, this.endAngle, false);
+			}
+			function drawBottle(context){
+				var paths = [];
+				
+				var path1 = new StraightLine({x: 150, y: 40}, {x: 200, y:40});
+				paths.push(path1);
+				
+				var path2 = new Arc({x: 200, y: 65}, 25, Math.PI*3/2, Math.PI*2);
+				paths.push(path2);
+			
+				var path3 = new StraightLine({x: 225, y: 65}, {x: 225, y:140});
+				paths.push(path3);
+				
+				var path4 =  new BezierCurve({x: 225, y:140}, {x: 280, y:340}, {x: 225, y:240}, {x: 280, y:240});
+				paths.push(path4);
+				
+				var path5 = new StraightLine({x: 280, y: 340}, {x: 280, y:500});
+				paths.push(path5);
+				
+				var path6 = new Arc({x: 255, y: 500}, 25, 0, Math.PI/2);
+				paths.push(path6);
+				
+				var path7 = new StraightLine({x: 255, y: 525}, {x: 95, y:525});
+				paths.push(path7);
+				
+				var path8 = new Arc({x: 95, y: 500}, 25, Math.PI/2, Math.PI);
+				paths.push(path8);
+				
+				var path9 = new StraightLine({x: 70, y: 500}, {x: 70, y:340});
+				paths.push(path9);
+				
+				var path10 =  new BezierCurve({x: 70, y:340}, {x: 125, y:140}, {x: 70, y:240}, {x: 125, y:240});
+				paths.push(path10);
+				
+				var path11 = new StraightLine({x: 125, y: 140}, {x: 125, y:65});
+				paths.push(path11);
+				
+				var path12 = new Arc({x: 150, y: 65}, 25, Math.PI, Math.PI*3/2);
+				paths.push(path12);
+				
+				
+				
+				context.save();
+				context.beginPath();
+				context.moveTo(150, 40);
+				for(var i=0; i<paths.length; i++){
+					paths[i].createPath(context);
+				}
+				context.closePath();
+				//context.stroke();
+				context.restore();
+			}
+			
+			function injectWater(context, y){
+				context.save();
+				context.fillStyle = 'rgba(0, 141, 255, 1)';
+				drawBottle(context);
+				context.clip();
+				context.fillRect(0, y, canvas.width, canvas.height-y);
+				context.restore();
+			}
+			
+			
+			
+			function initialize(){
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+			
+				
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';
+				
+				function drawBackground(){
+					context.save();
+					context.fillStyle = 'rgba(255, 255, 255, 1)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				var circles = [];
+				function dranSemiTransCircle(){
+					for(var i=0; i<circles.length; i++){
+						circle = circles[i];
+						context.save();
+						context.beginPath();
+						context.arc(circle.x, circle.y, circle.radius, 0, Math.PI*2, false);
+						
+						var oldGlobalAlpha = context.globalAlpha;
+						context.globalAlpha = 0.01;
+						
+						context.fillStyle = 'rgb(128, 128, 128, 1)';
+						context.clip();
+						context.fill();
+						circle.stroke(context);
+						context.globalAlpha = oldGlobalAlpha;
+						context.restore();
+					}
+					
+				}
+				
+				for(var i=0; i<4000; i++){
+					var circle = new Circle(Math.random()*1200, Math.random()*600, Math.random()*32);
+					circles.push(circle);
+				}
+				function animate(time){		
+					drawBackground();
+					
+					drawBottle(context);
+					context.stroke();
+					injectWater(context, 250+Math.sin(time/1000)*50);
+					//dranSemiTransCircle();
+					
+					requestNextAnimationFrame(animate);
+				}
+				
+				
+				requestNextAnimationFrame(animate);
+				
+			}
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="1200" height="600"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+</html>

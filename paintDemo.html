@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+			}
+			
+			#iconCanvas {
+				border: 1px solid lightgrey;
+				border-radius: 4px;
+				box-shadow: 0 0 8px darkgrey;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				user-select: none;
+				position: absolute;
+				top: 0;
+				left: 0;
+			}
+			
+			#drawingCanvas {
+				border: 1px solid lightgrey;
+				border-radius: 4px;
+				box-shadow: 0 0 2px darkgrey;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				user-select: none;
+				cursor: crosshair;
+			}
+			
+			#foldUnfold {
+				position: absolute;
+				left: 10px;
+				top: 5px;
+				color: #808080;
+				font-size: 32px;
+				margin: 0;
+				padding: 0;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				user-select: none;
+				height: 48px;
+				line-height: 48px;
+			}
+			
+			#foldUnfold:hover {
+				cursor: pointer;
+				font-size: 48px;
+			}
+		</style>
+		
+		<script>
+			function windowToCanvas(canvas, x, y) {
+			   var bbox = canvas.getBoundingClientRect();
+			   return { x: x - bbox.left * (canvas.width  / bbox.width),
+			            y: y - bbox.top  * (canvas.height / bbox.height)
+			          };
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()">
+		<canvas id="iconCanvas" width="100" height="400"></canvas>
+
+		<canvas id="drawingCanvas" width="600" height="400"></canvas>
+		<p id="foldUnfold">-</p>
+	</body>
+
+	<script>
+		var folded = false;
+		var iconTransInterval = undefined;
+		var ICON_BACKGROUND_STYLE = '#eeeeee',
+			ICON_BORDER_STROKE_STYLE = 'rgba(100, 140, 230, 0.5)',
+			ICON_STROKE_STYLE = 'rgb(100, 140, 230)',
+			ICON_FILL_STYLE = '#dddddd';
+		ICON_RECTANGLES = [{
+			x: 13.5,
+			y: 18.5,
+			w: 48,
+			h: 48
+		}, {
+			x: 13.5,
+			y: 78.5,
+			w: 48,
+			h: 48
+		}];
+		var OPEN_PATH_ICON = 0,
+			ERASER_ICON = 1;
+		var intervalShrinkMagnify = 10;
+		var iconCanvas = document.getElementById("iconCanvas");
+		var iconContext = iconCanvas.getContext("2d");
+		
+		var drawingCanvas = document.getElementById("drawingCanvas");
+		var drawingContext = drawingCanvas.getContext("2d");
+
+		function shrinkGentley() {
+			var width = $('#iconCanvas').width();
+			var height = $('#iconCanvas').height();
+			width = width * 0.875;
+			height = height * 0.875;
+			if (height < 4 || width < 1) {
+				clearInterval(iconTransInterval);
+				iconTransInterval = undefined;
+				$('#iconCanvas').css("width", "0px");
+				$('#iconCanvas').css("height", "0px");
+				$('#iconCanvas').css("opacity", "0");
+			} else {
+				$('#iconCanvas').css("width", width + "px");
+				$('#iconCanvas').css("height", height + "px");
+			}
+		}
+
+		function magnifyGentley() {
+			var width = $('#iconCanvas').width();
+			var height = $('#iconCanvas').height();
+			$('#iconCanvas').css("opacity", "1");
+			if (0 == width || 0 == height) {
+				width = 1;
+				height = 4;
+			}
+			width = width * 1.25;
+			height = height * 1.25;
+			if (height >= 400 || width >= 100) {
+				clearInterval(iconTransInterval);
+				iconTransInterval = undefined;
+				$('#iconCanvas').css("width", "100px");
+				$('#iconCanvas').css("height", "400px");
+			} else {
+				
+				$('#iconCanvas').css("width", Math.ceil(width)+"px");
+				$('#iconCanvas').css("height", Math.ceil(width*4)+"px");
+			}
+		}
+
+		function setFoldUnfoldIconBehavior() {
+			var iconFold = document.getElementById("foldUnfold");
+			iconFold.onclick = function(e) {
+				//已经折叠，展开之
+				if (true == folded) {
+					folded = false;
+					iconFold.innerHTML = "-";
+					if (undefined != iconTransInterval) {
+						clearInterval(iconTransInterval);
+					}
+					iconTransInterval = setInterval(function() {
+						magnifyGentley();
+					}, intervalShrinkMagnify);
+				} else {
+					folded = true;
+					iconFold.innerHTML = "+";
+					if (undefined != iconTransInterval) {
+						clearInterval(iconTransInterval);
+					}
+					iconTransInterval = setInterval(function() {
+						shrinkGentley();
+						drawIcons();
+					}, intervalShrinkMagnify);
+				}
+			}
+		}
+
+		function drawIcons() {
+			iconContext.clearRect(0, 0, iconCanvas.width, iconCanvas.height);
+			iconContext.fillStyle = "rgba(220, 220, 220, 0.95)";
+			iconContext.fillRect(0, 0, iconCanvas.width, iconCanvas.height);
+			ICON_RECTANGLES.forEach(function(rect) {
+				iconContext.save();
+				iconContext.fillStyle = ICON_BACKGROUND_STYLE;
+				iconContext.fillRect(rect.x, rect.y, rect.w, rect.h);
+				iconContext.restore();
+				drawIcon(rect);
+			});
+		}
+
+		function drawIcon(rect) {
+			iconContext.save();
+			iconContext.strokeStyle = ICON_BORDER_STROKE_STYLE;
+   			iconContext.strokeRect(rect.x, rect.y, rect.w, rect.h);
+   			iconContext.strokeStyle = ICON_STROKE_STYLE;
+			if (rect.y == ICON_RECTANGLES[OPEN_PATH_ICON].y) {
+				drawOpenPathRect(rect);
+			} else {
+			}
+			iconContext.restore();
+		}
+
+		function drawOpenPathRect(rect) {
+			iconContext.beginPath();
+			iconContext.lineTo(rect.x + 13, rect.y + 19);
+			iconContext.lineTo(rect.x + 15, rect.y + 17);
+			iconContext.lineTo(rect.x + 25, rect.y + 12);
+			iconContext.lineTo(rect.x + 35, rect.y + 13);
+			iconContext.lineTo(rect.x + 38, rect.y + 15);
+			iconContext.lineTo(rect.x + 40, rect.y + 17);
+			iconContext.lineTo(rect.x + 39, rect.y + 23);
+			iconContext.lineTo(rect.x + 36, rect.y + 25);
+			iconContext.lineTo(rect.x + 32, rect.y + 27);
+			iconContext.lineTo(rect.x + 28, rect.y + 29);
+			iconContext.lineTo(rect.x + 26, rect.y + 31);
+			iconContext.lineTo(rect.x + 24, rect.y + 33);
+			iconContext.lineTo(rect.x + 22, rect.y + 35);
+			iconContext.lineTo(rect.x + 20, rect.y + 37);
+			iconContext.lineTo(rect.x + 18, rect.y + 39);
+			iconContext.lineTo(rect.x + 16, rect.y + 39);
+			iconContext.lineTo(rect.x + 13, rect.y + 36);
+			iconContext.lineTo(rect.x + 11, rect.y + 34);
+			iconContext.stroke();
+			
+		}
+		var draging = false;
+		drawingCanvas.onmousedown = function(e){
+			e.preventDefault();
+			draging = true;
+			drawingContext.beginPath();
+			var x = e.x || e.clientX,
+      		y = e.y || e.clientY;
+			var loc = windowToCanvas(drawingCanvas, x, y);
+			
+			drawingContext.moveTo(loc.x, loc.y);
+		}
+		drawingCanvas.onmousemove = function(e){
+			e.preventDefault();
+			if(false == draging){
+				return;
+			}
+			var x = e.x || e.clientX,
+      		y = e.y || e.clientY;
+			var loc = windowToCanvas(drawingCanvas, x, y);
+			drawingContext.lineTo(loc.x, loc.y);
+			drawingContext.stroke();
+		}
+		drawingCanvas.onmouseup = function(e){
+			draging = false;
+		}
+
+		function initialize() {
+			
+			drawIcons();
+			setFoldUnfoldIconBehavior();
+		}
+	</script>
+
+</html>

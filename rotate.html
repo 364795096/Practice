@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body{
+				background: lightgray;
+			}
+			*{	
+				margin: 0;
+			}
+			#canvas{
+				background: white;
+					
+			}
+			#glassPane{
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+		<script src="js/shapes.js"></script>
+		<script src="js/requestNextAnimationFrame.js"></script>
+		<script>
+			
+			
+			circle = new Circle(300, 120, 100);
+			
+			var image = new Image();
+			image.src = "images/bandary.jpg";
+			var imageLoaded = false;
+			image.onload = function(){
+				imageLoaded = true;
+			}
+			
+			function initialize(){
+				
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				var anglarVelocity = Math.PI/8;
+				
+				function drawImage(deltaTime){
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					if(false == imageLoaded){
+						return;
+					}
+					context.save();
+					context.translate(circle.x, circle.y);
+					context.rotate(deltaTime/1000*anglarVelocity);
+					circle.fillStyle = 'rgb(0, 0, 0)';
+					context.translate(-circle.x, -circle.y);
+					circle.stroke(context);
+					circle.fill(context);
+					
+					//*
+					circle.createPath(context);
+					context.clip();
+					var sx =0,
+						sy =0,
+						sw = image.width, 
+						sh = image.height;
+					if(image.width>image.height){
+						sx= (image.width-image.height)/2;
+						sw = image.height;
+						sh = sw;
+					}else{
+						sy= (image.height-image.width)/2;
+						sw = image.width;
+						sh = sw;
+					}
+					
+					var x = circle.x-circle.radius,
+						y = circle.y-circle.radius,
+						w = circle.radius*2,
+						h = w;
+					
+					
+					context.drawImage(image, sx, sy, sw, sh, x, y, w, h);
+					//*/
+					context.restore();	
+				}
+				
+				
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw+'px';
+				canvas.style.height = bw/2+'px';	
+				var lastTime = 0;
+				
+				
+				
+				function animate(time) {	
+					var deltaTime = time - lastTime;
+					drawImage(deltaTime);
+					window.requestNextAnimationFrame(animate);
+				}
+				window.requestNextAnimationFrame(animate);
+				
+			}
+			
+		</script>
+	</head>
+	<body onload="initialize()">
+		<canvas id="canvas" width="600" height="300"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+</html>

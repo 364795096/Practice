@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+		<title></title>
+		<style>
+			body {
+				background: lightgray;
+			}
+			
+			* {
+				margin: 0;
+			}
+			
+			#canvas {
+				background: white;
+			}
+			
+			#glassPane {
+				position: absolute;
+				margin: 10px;
+				background: white;
+				padding: 10px;
+				width: 300px;
+				height: 150px;
+				border-radius: 4px;
+				box-shadow: 0 0 4px gray;
+				opacity: 0.6;
+				-moz-user-select: ;
+			}
+		</style>
+
+		<script>
+			function initialize() {
+				var canvas = document.getElementById("canvas");
+				var context = canvas.getContext("2d");
+				drawBackground();
+				var gloabeScale = 1;
+				// 浏览器窗口
+				var bw = document.body.clientWidth;
+				canvas.style.width = bw + 'px';
+				canvas.style.height = bw / 2 + 'px';
+
+				function drawBackground() {
+					context.save();
+					context.clearRect(0, 0, canvas.width, canvas.height);
+					context.fillStyle = 'rgb(255, 255, 255)';
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					context.restore();
+				}
+				
+				test();
+
+				function test() {
+					
+					var cycle2 = {
+						x: 200,
+						y: 200,
+						r: 50
+					}
+					var cycle1 = {
+						x: 200,
+						y: 200,
+						r: 100
+					}
+					context.beginPath();
+					//context.arc(cycle1.x, cycle1.y, cycle1.r, 0, Math.PI * 2, false);
+					context.stroke();
+					context.beginPath();
+					//context.arc(cycle2.x, cycle2.y, cycle2.r, 0, Math.PI * 2, false);
+					context.stroke();
+					var gr = context.createRadialGradient(cycle1.x, cycle1.y, cycle1.r, cycle2.x, cycle2.y, cycle2.r);
+					gr.addColorStop(0, 'rgba(255, 0, 0, 0.05)');
+					gr.addColorStop(0.35, 'rgba(255, 0, 0, 0.025)');
+					gr.addColorStop(0.5, 'rgba(0, 0, 255, 0)');
+					context.beginPath();
+					
+					context.fillStyle = gr;
+					var cycle = cycle1;
+					context.arc(cycle.x, cycle.y, cycle.r, 0, Math.PI*2, false);
+					context.fill();
+					//context.fillRect(0, 0, 500, 500);
+				}
+			}
+		</script>
+	</head>
+
+	<body onload="initialize()">
+		<canvas id="canvas" width="600" height="300"></canvas>
+		<div id="glassPane">
+			<p id="tipStart"></p>
+			<p id="tip"></p>
+			<p id="scale"></p>
+		</div>
+	</body>
+
+</html>
