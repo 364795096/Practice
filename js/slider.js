@@ -143,7 +143,7 @@ COREHTML5.Slider.prototype = {
          var mouse = null,
              percent = null;
 
-         e.preventDefault();
+         //e.preventDefault();
 
          if (slider.dragging) {
             mouse = slider.windowToCanvas(e.clientX, e.clientY);
@@ -160,7 +160,7 @@ COREHTML5.Slider.prototype = {
       window.addEventListener('mouseup', function(e) {
          var mouse = null;
 
-         e.preventDefault();
+         //e.preventDefault();
 
          if (slider.dragging) {
             slider.fireChangeEvent(e);

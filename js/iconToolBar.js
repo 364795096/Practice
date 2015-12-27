@@ -54,11 +54,11 @@ IconToolBar.prototype.initialize = function() {
 						try{
 						if (loc.x >= icon.rect.x && loc.x <= icon.rect.x + icon.rect.size &&
 							loc.y >= icon.rect.y && loc.y <= icon.rect.y + icon.rect.size) {
-							if (self.selectedIconIndex != icon.index) {
+							//if (self.selectedIconIndex != icon.index) {
 								selectChanged = true;
 								self.selectedIconIndex = icon.index;
 								self.onSelectionChange(icon.index);
-							}
+							//}
 							break;
 						}
 						}catch(e){

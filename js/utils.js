@@ -11,6 +11,54 @@ function windowToCanvas(canvas, x, y) {
 	return canvasLoc;
 }
 
+var swapItems = function(arr, index1, index2) {
+	var temp = arr.splice(index2, 1, arr[index1]);
+	arr[index1] = temp[0];
+	return arr;
+};
+
+var AdvancedArray = function(){
+	this.array = [];
+	this.len = 0;
+}
+
+AdvancedArray.prototype.push = function(item){
+	this.array.push(item);
+	this.len = this.array.length;
+}
+
+AdvancedArray.prototype.up = function(index){
+	if(index+1>this.len || index<0){
+		throw "Index exceeded the range!";
+		return;
+	}
+	if(0 < index){
+		swapItems(this.array, index, index-1);
+	}
+}
+
+AdvancedArray.prototype.down = function(index){
+	if(index+1>this.len || index<0){
+		throw "Index exceeded the range!";
+		return;
+	}
+	if(index<this.len-1){
+		swapItems(this.array, index, index+1);
+	}
+}
+
+AdvancedArray.prototype.get = function(index){
+	if(index+1>this.len || index<0){
+		//throw "Index exceeded the range!";
+		return undefined;
+	}
+	return this.array[index];
+}
+
+AdvancedArray.prototype.length = function(){
+	return this.array.length;
+}
+
 var PointPair = function(pt1, pt2) {
 	this.pt1 = new Point(pt1.x, pt1.y);
 	this.pt2 = new Point(pt2.x, pt2.y);

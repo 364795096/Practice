@@ -1,4 +1,5 @@
 var PopupWindow = function(id, parentId, width, height){
+	this.id = id;
 	this.width = width;
 	this.height = height;
 	this.target = document.getElementById(id);
@@ -9,6 +10,9 @@ var PopupWindow = function(id, parentId, width, height){
 	this.target.style.boxShadow = '2px 2px 4px black';
 	this.target.style.position ='absolute';
 	this.target.style.background = 'lightgray';
+	this.target.style.overflow = 'hidden';
+	//this.target.style.overflowY = 'scroll';
+	
 	
 	this.parent = document.getElementById(parentId);
 	
@@ -31,9 +35,22 @@ var PopupWindow = function(id, parentId, width, height){
 	head.style.width = width+'px';
 	head.style.height = '32px';
 	head.style.background = 'gray';
+	head.style.position = 'absolute';
+	head.style.left = '0';
+	head.style.top = '0';
+	var title = document.createElement('p');
+	
+	title.style.height = '32px';
+	title.style.lineHeight = '32px';
+	title.style.marginLeft = '16px';
+	title.setAttribute("id", "title");
+	
+	head.appendChild(title);
+	
 	this.target.appendChild(head);
 	
 	var close = document.createElement('p');
+	
 	close.innerHTML = "╳";
 	close.style.width = '32px';
 	close.style.position = 'absolute';
@@ -52,7 +69,11 @@ var PopupWindow = function(id, parentId, width, height){
 	//close.style.background = 'lightgray';
 	this.target.appendChild(close);
 }
-
+PopupWindow.prototype.setTitle = function(title){
+	var selector = "#" + this.id+ " " + "#title";
+	var titleElem = document.querySelector(selector);
+	titleElem.innerHTML = title;
+}
 PopupWindow.prototype.show = function(){
 	this.target.style.display = 'block';
 }

@@ -152,6 +152,11 @@ var BezierPath = function(){
 	this.fillStyle = 'white';
 	this.filled = false;
 	this.selectedCurveIndex = undefined;
+	this.name = 'default path';
+}
+
+BezierPath.prototype.setName = function(name){
+	this.name = name;
 }
 
 BezierPath.prototype.push = function(point){
@@ -210,6 +215,29 @@ BezierPath.prototype.showPath = function(context){
 		this.bezierCurves[this.selectedCurveIndex].draw(context);
 	}
 	context.restore();
+}
+
+BezierPath.prototype.showSelected = function(context){
+	if(undefined != this.firstPoint){
+		//
+		drawFlag(context, this.firstPoint.x, this.firstPoint.y);
+	}
+	
+	function drawFlag(context, x, y){
+		context.save();
+		context.moveTo(x, y);
+		context.beginPath();
+		context.lineTo(x, y-16);
+		context.lineTo(x-8, y-8);
+		context.lineTo(x-1, y-8);
+		context.lineTo(x-1, y);
+		context.closePath();
+		context.fillStyle = 'red';
+		context.fill();
+		context.strokeStyle = 'red';
+		context.stroke();
+		context.restore();
+	}
 }
 
 BezierPath.prototype.closePath = function(){
