@@ -17,15 +17,16 @@ var IconToolBar = function(elemId) {
 	};
 
 	this.icons = [];
-	this.selectedIconIndex = undefined;
+	this.selectedIconIndex = 0;
 }
 
 // 工具条的头部，包含了一个最小化按钮
 IconToolBar.prototype.drawHead = function() {
 	var context = this.context;
 	context.save();
-	context.fillStyle = 'rgba(220, 220, 220, 0.8)';
+	context.fillStyle = 'gray';
 	context.fillRect(0, 0, this.canvas.width, 32);
+	context.strokeStyle = 'white';
 	context.lineWidth = 4;
 	context.beginPath();
 	context.moveTo(this.canvas.width - 24, 16);
@@ -195,7 +196,8 @@ IconToolBar.prototype.setIcon = function(index, imgUrl, fillStyle) {
 IconToolBar.prototype.drawIcons = function() {
 	var context = this.context;
 	var selectedIndex = this.selectedIconIndex;
-	context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+	context.fillStyle = 'rgba(236, 236, 236, 1)';
+	context.fillRect(0, 0, this.canvas.width, this.canvas.height);
 	this.drawHead();
 
 	for (var i = 0; i < this.icons.length; i++) {
@@ -220,17 +222,17 @@ IconToolBar.prototype.drawIcons = function() {
 		context.lineTo(icon.rect.x + icon.rect.size, icon.rect.y + icon.rect.size);
 		context.lineTo(icon.rect.x, icon.rect.y + icon.rect.size);
 		context.lineTo(icon.rect.x, icon.rect.y);
-		context.fillStyle = 'rgba(220, 220, 220, 1)';
+		context.fillStyle = 'white';
 		if(icon.fillStyle){
 			context.fillStyle = icon.fillStyle;
 		}
-		
+		context.strokeStyle = "gray";
 		if (icon.index == selectedIndex) {
-			context.shadowBlur = 2;
-			context.shadowOffsetX = 2;
-			context.shadowOffsetY = 2;
+			context.shadowBlur = 6;
+			context.shadowOffsetX = 3;
+			context.shadowOffsetY = 3;
 			context.shadowColor = 'black';
-			context.strokeStyle = "red";
+			context.strokeStyle = "black";
 		}
 		
 		context.fill();

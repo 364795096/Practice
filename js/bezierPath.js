@@ -53,16 +53,52 @@ BezierCurve.prototype.getDistanceFrom = function(x, y){
 	for (var i = 0; i < this.samplePoints.length; i++) {
 		var point = this.samplePoints[i];
 		var distanceTemp = Math.sqrt(Math.pow(point.x - x, 2) + Math.pow(point.y - y, 2));
-		// 挑选出最短的距离
+		// 挑选出考察点与样点的最短的距离作为考差点与曲线的距离，
+		// 这是一种近似计算，不过在实际运用中，我们并不需要非常精准地算出这个距离。
 		if(distanceTemp<distance){
 			distance = distanceTemp;
 		}
-		/*
-		if ( <= this.closeInterval) {
-			return true;
-		}*/
 	}
 	return distance;
+}
+
+//applyRegular_XX函数，端点不移动，移动两个控制点，使得调整后的曲线符合指定的规则
+
+BezierCurve.prototype.applyRegular_00 = function(positive){	
+	var x = this.p0.x + (this.p3.x-this.p0.x)/3;
+	var y = this.p0.y + (this.p3.y-this.p0.y)/3;
+	
+	this.p1.x = x;
+	this.p1.y = y;
+		
+	x = this.p0.x + (this.p3.x-this.p0.x)*2/3;
+	y = this.p0.y + (this.p3.y-this.p0.y)*2/3;
+	this.p2.x = x;
+	this.p2.y = y;
+}
+
+// 规则01： 类似于半圆
+BezierCurve.prototype.applyRegular_01 = function(positive){
+	var vec1 = undefined;
+	if(true == positive){
+		vec1 = new Vector({x:this.p3.x-this.p0.x, y: this.p3.y-this.p0.y});
+	}
+	else{
+		vec1 = new Vector({x:this.p0.x-this.p3.x, y: this.p0.y-this.p3.y});
+	}
+	var magnitude = vec1.getMagnitude();
+	var vec2 = vec1.perpendicular(); // 法向量
+	vec2 = vec2.normalize();
+	vec2.x = vec2.x*magnitude*4/6;
+	vec2.y = vec2.y*magnitude*4/6;
+	var  vec1Normalize = vec1.normalize();
+	vecPlus1 = vec2.add({x: vec1Normalize.x*0.006*magnitude, y: vec1Normalize.y*0.006*magnitude});
+	this.p1.x = this.p0.x+vecPlus1.x;
+	this.p1.y = this.p0.y+vecPlus1.y;
+
+	vecPlus2 = vec2.add({x: -vec1Normalize.x*0.006*magnitude, y: -vec1Normalize.y*0.006*magnitude});
+	this.p2.x = this.p3.x+vecPlus2.x;
+	this.p2.y = this.p3.y+vecPlus2.y;
 }
 
 BezierCurve.prototype.select = function(selected) {
@@ -115,14 +151,19 @@ BezierCurve.prototype.draw = function(context) {
 	context.stroke();
 	// 被选中了，需要将贝塞尔点画出来
 	if (this.selected) {
+		var scale = getScale();
+		if(scale<1){
+			scale = 1;
+		}
+		var radius = 4/scale;
 		// 端点红色
 		context.strokeStyle = 'red';
-		var circle = new Circle(this.p0.x, this.p0.y, 4);
+		var circle = new Circle(this.p0.x, this.p0.y, radius);
 		circle.strokeStyle = context.strokeStyle;
-		context.lineWidth = 2;
+		context.lineWidth = 1/scale;
 		circle.stroke(context);
 
-		circle = new Circle(this.p3.x, this.p3.y, 4);
+		circle = new Circle(this.p3.x, this.p3.y, radius);
 		circle.strokeStyle = context.strokeStyle;
 		circle.stroke(context);
 		// 第二个端点实心
@@ -131,11 +172,11 @@ BezierCurve.prototype.draw = function(context) {
 
 		// 控制点绿色
 		context.strokeStyle = 'green';
-		circle = new Circle(this.p1.x, this.p1.y, 4);
+		circle = new Circle(this.p1.x, this.p1.y, radius);
 		circle.strokeStyle = context.strokeStyle;
-		context.lineWidth = 2;
+		context.lineWidth = 1/scale;
 		circle.stroke(context);
-		circle = new Circle(this.p2.x, this.p2.y, 4);
+		circle = new Circle(this.p2.x, this.p2.y, radius);
 		circle.strokeStyle = context.strokeStyle;
 		circle.stroke(context);
 		circle.fillStyle = 'green';
@@ -152,7 +193,9 @@ var BezierPath = function(){
 	this.fillStyle = 'white';
 	this.filled = false;
 	this.selectedCurveIndex = undefined;
+	this.strokeStyle = undefined;
 	this.name = 'default path';
+	this.show = true;
 }
 
 BezierPath.prototype.setName = function(name){
@@ -177,15 +220,25 @@ BezierPath.prototype.push = function(point){
 		}
 		
 		var p3 = {x: point.x, y: point.y};
-		// 新增的贝塞尔曲线，控制点默认居于两个端点中央，因此新增的贝塞尔曲线看起来如同一条直线。
-		var x = (p0.x+p3.x)/2;
-		var y = (p0.y+p3.y)/2;
-		var pControl = {x: x, y: y};
-		this.bezierCurves.push(new BezierCurve(p0, pControl, pControl, p3));
+		// 新增的贝塞尔曲线，控制点默认居于两个端点之间，使新增的贝塞尔曲线看起来如同一条直线。
+		// p1: 1/3点， p2: 2/3点
+		var x = p0.x + (p3.x-p0.x)/3;
+		var y = p0.y + (p3.y-p0.y)/3;
+		var pControl1 = {x: x, y: y};
+		
+		x = p0.x + (p3.x-p0.x)*2/3;
+		y = p0.y + (p3.y-p0.y)*2/3;
+		var pControl2 = {x: x, y: y};
+		
+		this.bezierCurves.push(new BezierCurve(p0, pControl1, pControl2, p3));
 	}
 }
 
-BezierPath.prototype.showPath = function(context){
+BezierPath.prototype.render = function(context, showPath){
+	if(false == this.show){ // 无需显示
+		return;
+	}
+	// 只有一个起点
 	if(undefined != this.firstPoint && 0 == this.bezierCurves.length){
 		context.save();
 		var circle = new Circle(this.firstPoint.x, this.firstPoint.y, 2);
@@ -206,20 +259,29 @@ BezierPath.prototype.showPath = function(context){
 			this.bezierCurves[i].p3.x, this.bezierCurves[i].p3.y);
 		this.bezierCurves[i].getSamplePoints();
 	}
-	context.stroke();
+	if(showPath)
+	{
+		context.stroke();
+	}
 	if(this.filled && this.closed){
+		//context.shadowBlur = 36;
+		//context.shadowOffsetX = 0;
+		//context.shadowOffsetY = 0;
+		//context.shadowColor = 'black';
 		context.fillStyle = this.fillStyle;
 		context.fill();
 	}
+	
+	context.restore();
+	
 	if(undefined != this.selectedCurveIndex){
 		this.bezierCurves[this.selectedCurveIndex].draw(context);
 	}
-	context.restore();
 }
 
+// 选中的路径，在起点插个小红旗
 BezierPath.prototype.showSelected = function(context){
-	if(undefined != this.firstPoint){
-		//
+	if(true == this.show && undefined != this.firstPoint){
 		drawFlag(context, this.firstPoint.x, this.firstPoint.y);
 	}
 	
@@ -283,6 +345,28 @@ BezierPath.prototype.curveSelectionTest = function(x, y) {
 		return undefined;
 	}
 }
+
+BezierPath.prototype.move = function(dx, dy){
+	this.firstPoint.x += dx;
+	this.firstPoint.y += dy;
+	
+	for (var i = 0; i < this.bezierCurves.length; i++) {
+		var curve = this.bezierCurves[i];
+		
+		curve.p0.x += dx;
+		curve.p0.y += dy;
+		
+		curve.p1.x += dx;
+		curve.p1.y += dy;
+		
+		curve.p2.x += dx;
+		curve.p2.y += dy;
+		
+		curve.p3.x += dx;
+		curve.p3.y += dy;
+	}
+};
+
 BezierPath.prototype.updateBezierPoint = function(pointParam) {
 	var curve = this.bezierCurves[pointParam.curveIndex];
 	var p = curve.p0;
@@ -314,6 +398,8 @@ BezierPath.prototype.updateBezierPoint = function(pointParam) {
 			var pToProcess = this.bezierCurves[this.bezierCurves.length-1].p3;
 			pToProcess.x = pointParam.x;
 			pToProcess.y = pointParam.y;
+			this.firstPoint.x = pointParam.x;
+			this.firstPoint.y = pointParam.y;
 		}
 	}
 	
@@ -328,6 +414,8 @@ BezierPath.prototype.updateBezierPoint = function(pointParam) {
 			var pToProcess = this.bezierCurves[0].p0;
 			pToProcess.x = pointParam.x;
 			pToProcess.y = pointParam.y;
+			this.firstPoint.x = pointParam.x;
+			this.firstPoint.y = pointParam.y;
 		}
 	}
 	
@@ -336,11 +424,19 @@ BezierPath.prototype.updateBezierPoint = function(pointParam) {
 /*
  * @descriptor fill方法不直接填充路径，而是在showPath方法中根据fill设置好的参数进行填充。
  */
-BezierPath.prototype.fill = function(fillStyle){
+BezierPath.prototype.setFillStyle = function(fillStyle){
 	if(false == this.closed){
 		throw "Bezier path has not been closed!";
 		return;
 	}
 	this.fillStyle = fillStyle;
 	this.filled = true;
+}
+
+BezierPath.prototype.setStrokeStyle = function(strokeStyle){
+	this.strokeStyle = strokeStyle;
+}
+
+BezierPath.prototype.showPath = function(show){
+	this.show = show;
 }

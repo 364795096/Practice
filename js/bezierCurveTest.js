@@ -1,9 +1,22 @@
+// 本文件代码有点复杂费解，待重构
+
+// 所有的图层
+var layers = new Layers();
+
+function drawBackground(canvas) {
+	var context = canvas.getContext("2d");
+	context.save();
+	context.fillStyle = 'white';
+	context.fillRect(0, 0, canvas.width, canvas.height);
+	drawGrid(context, 'rgba(236, 236, 236, 1)', 20, 20);
+	context.restore();
+}
 var iconSelectionIndex = 0;
 var fillColorStyle = 'gray';
+var selectedCurve = undefined; // 当前选中的贝塞尔曲线（段）
 
 function initComponent() {
 	// 图标工具条
-
 	var iconToolBar = new IconToolBar("iconCanvas");
 
 	iconToolBar.setIconSepecification(2, 32, 12);
@@ -13,10 +26,11 @@ function initComponent() {
 	iconToolBar.setIcon(3, "images/color.png");
 	iconToolBar.setIcon(4, "images/zoomin.png");
 	iconToolBar.setIcon(5, "images/zoomout.png");
-	iconToolBar.setIcon(6, "images/drag.png");
-
-
-
+	iconToolBar.setIcon(6, "images/canvasDrag.png");
+	iconToolBar.setIcon(7, "images/move.png");
+	
+	var quickToolBars = [];
+	// 常用工具，选择回掉函数
 	iconToolBar.onSelectionChange = function(index) {
 		iconSelectionIndex = index;
 		if (3 == index) {
@@ -29,12 +43,24 @@ function initComponent() {
 			pathView.hide();
 			colorPicker.hide();
 		}
+		showToolBar(index);
 
 	}
 	iconToolBar.drawIcons();
+	
+	function showToolBar(iconIndex){
+		for(var i=0; i<quickToolBars.length; i++){
+			if(iconIndex == quickToolBars[i].iconIndex){
+				quickToolBars[i].toolBar.show();
+			}
+			else{
+				quickToolBars[i].toolBar.hide();
+			}
+		}
+	}
 	// 颜色选择器
-	var colorPicker = new PopupWindow("colorPicker", "mainBody", 300, 200);
-	colorPicker.initialize = function() {
+	var colorPicker = new PopupWindow();
+	colorPicker.initializeEx = function() {
 		this.redSlider = new COREHTML5.Slider('rgb(0,0,0)',
 				'rgba(255,0,0,0.8)', 0),
 			this.blueSlider = new COREHTML5.Slider('rgb(0,0,0)',
@@ -77,20 +103,64 @@ function initComponent() {
 			updateColor();
 		});
 	}
-	colorPicker.initialize();
+	colorPicker.initialize("colorPicker", "mainBody", 300, 200);
+	colorPicker.initializeEx();
 	colorPicker.hide();
 
-	var pathView = initPathView();
+	var pathView = initLayerView();
 	pathView.hide();
+	
+	quickToolBars = initQuickToolBars();
+	showToolBar(iconSelectionIndex);
 }
 
+function initQuickToolBars(){
+	var toolBars = [];
+	var penQuickToolBar = new FoldableTooBar();
+	penQuickToolBar.initialize("penToolQuickOperation", "mainBody", 600, 64, "top");
+	penQuickToolBar.hide();
+	penQuickToolBar.fold(); // 收起来
+	toolBars.push({toolBar: penQuickToolBar, iconIndex: 0}); // 0对应于钢笔工具
+	
+	var selector = "#penToolQuickOperation #bezierRegular_00";
+	var bg00 = document.querySelector(selector);
+	bg00.onclick = function(e){
+		if(undefined != selectedCurve){
+			selectedCurve.applyRegular_00();
+		}
+	}
+	
+	selector = "#penToolQuickOperation #bezierRegular_0101";
+	var bg0101 = document.querySelector(selector);
+	bg0101.onclick = function(e){
+		if(undefined != selectedCurve){
+			selectedCurve.applyRegular_01(true);
+		}
+	}
+	
+	selector = "#penToolQuickOperation #bezierRegular_0102";
+	var bg0102 = document.querySelector(selector);
+	bg0102.onclick = function(e){
+		if(undefined != selectedCurve){
+			selectedCurve.applyRegular_01(false);
+		}
+	}
+	return toolBars;
+}
 
 var bezierPathArray = new AdvancedArray();
 bezierPathArray.push(new BezierPath());
+
+layers.push(new Layer());
+layers.get(0).push(bezierPathArray.get(0));
+layers.setActiveLayer(0);
+
 var bezierPathEdting = bezierPathArray.get(0);
-function initPathView() {
-	// 路径查看器
-	var pathView = new PopupWindow("pathView", "mainBody", 300, 400);
+var pathShow = true;
+function initLayerView() {
+	// 图层视图
+	var pathView = new PopupWindow();
+	pathView.initialize("pathView", "mainBody", 300, 400);
 	pathView.setTitle("Path View");
 	//pathView.hide();
 
@@ -98,15 +168,19 @@ function initPathView() {
 	pathList.oncontextmenu = function(e) {
 		e.preventDefault();
 	}
-	var selectionIndex = undefined;
+	var selectionIndex = 0;
 	
+	// 创建一条新路径
+	// 20160102: 改造成添加新图层
 	$('#pathView').on('click', '#add', function(e) {
 		createNewPath();
 		function createNewPath(){	
 			var $items = $('.pathItem');
 			
 			var $pathItem = $('<div class="pathItem selected"></div>');
-			var $img = $('<img src="images/pathDemo.png">');
+			var $imgSwitch = $('<img src="images/show.png" class="showSwitch">');
+			$pathItem.append($imgSwitch);
+			var $img = $('<img src="images/pathDemo.png" class="thumbnail">');
 			$pathItem.append($img);
 			var $inputTitle = $('<input type="text" class="title" value="new path">');
 			$pathItem.append($inputTitle);
@@ -121,13 +195,54 @@ function initPathView() {
 			selectionIndex = bezierPathArray.len-1;
 			bezierPathEdting = bezierPathArray.get(selectionIndex);
 			bezierPathEdting = pathNew;
+			
+			var layer  = new Layer("new layer");
+			layer.push(pathNew);
+			layers.push(layer);
+			layers.print();
 		}
 	});
+	
+	$('#pathView').on('click', '.showSwitch', function(){	
+		var parent = this.parentNode;	
+		var $items = $('.pathItem');
+		var index = undefined;
+		for (var i = 0; i < $items.length; i++) {
+			if ($items[i] == parent) {
+				// 逆向
+				index = $items.length-1-i;
+				break;
+			}
+		}
+		
+		var path = bezierPathArray.get(index);
+		// 隐藏
+		if("1" == $(this).attr("show")){
+			$(this).attr("show", "0");
+			$(this).attr("src", "images/hide.png");
+			path.showPath(false);
+		}else{ // 显示
+			$(this).attr("show", "1");
+			$(this).attr("src", "images/show.png");
+			path.showPath(true);
+		}
+	});
+	
 	$('#pathView').on('blur', '.title', function(e) {
 		var path = bezierPathArray.get(selectionIndex);
 		if(path){
 			path.setName($(this).val());
 		}	
+	});
+	
+	$('#pathView').on('click', '#pathShowSwitch', function(e) {
+		if(true == pathShow){
+			pathShow = false;
+			$(this).attr("src", "images/pathHide.png");
+		}else{
+			pathShow = true;
+			$(this).attr("src", "images/pathShow.png");
+		}
 	});
 	
 	$('#pathView').on('click', '.pathItem', function(e) {
@@ -213,7 +328,7 @@ DefaultProcessor.prototype.onDblClick = function(e) {};
 function drawBezierPaths(context){
 	for(var i=0; i<bezierPathArray.len; i++){
 		var path = bezierPathArray.get(i);
-		path.showPath(context);
+		path.render(context, pathShow);
 	}
 	bezierPathEdting.showSelected(context);
 }
@@ -223,14 +338,15 @@ var translateX = 0;
 var translateY = 0;
 // 标志刚刚拖拽过贝塞尔点，保证刚刚被选择的贝塞尔曲线，仍然处于被选择状态
 var justDraggedBezierPoint = false; 
-var selectedCurve = undefined;
+
 var selectedCurveIndex = -1;
 var selectedBezierPoint = undefined;
-var curveSelectionTestResult = undefined;
 var mouseRightButtonDown = false;
 var interactionProcessor = [];
 var dragParam = undefined;
-
+function getScale(){
+	return scale;
+}
 function windowToCanvas(canvas, x, y, scale, tranX, tranY) {
 	var bbox = canvas.getBoundingClientRect();
 	var canvasLoc = {
@@ -247,6 +363,8 @@ function getCanvasLocation(e) {
 	return loc;
 }
 
+// 钢笔工具的功能有增加，修改贝塞尔点
+// 钢笔工具处理例程
 var penProcessor = {
 	onClick: function(e) {
 		var loc = getCanvasLocation(e);
@@ -307,11 +425,14 @@ var penProcessor = {
 		});
 	}
 }
+
+// 填充工具处理例程
 var fillerProcessor = function() {}
 fillerProcessor.prototype = new DefaultProcessor();
 fillerProcessor.prototype.onClick = function(e) {
-	bezierPathEdting.fill(getFillColorStyle());
+	bezierPathEdting.setFillStyle(getFillColorStyle());
 }
+
 var colorProcessor = function() {}
 colorProcessor.prototype = new DefaultProcessor();
 colorProcessor.prototype.onClick = function(e) {}
@@ -338,23 +459,68 @@ ZoomOutProcessor.prototype.onClick = function(e) {
 }
 
 
-var DragProcessor = function() {}
-DragProcessor.prototype = new DefaultProcessor();
-DragProcessor.prototype.onMouseDown = function(e) {
+var CanvasDragProcessor = function() {}
+CanvasDragProcessor.prototype = new DefaultProcessor();
+CanvasDragProcessor.prototype.onMouseDown = function(e) {
 	dragParam = {
 		loc: getCanvasLocation(e)
 	};
 };
 
-DragProcessor.prototype.onMouseUp = function(e) {
+CanvasDragProcessor.prototype.onMouseUp = function(e) {
 	loc = getCanvasLocation(e);
 	var dx = loc.x - dragParam.loc.x;
 	var dy = loc.y - dragParam.loc.y;
 
-	console.log("drag, dx: " + dx + ", dy: " + dy);
+	//console.log("drag, dx: " + dx + ", dy: " + dy);
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	translateX += dx / scale;
 	translateY += dy / scale;
 	context.translate((dx / scale), dy / scale);
+	dragParam = undefined;
+};
+
+var PathMoveProcessor = function() {}
+PathMoveProcessor.prototype = new DefaultProcessor();
+PathMoveProcessor.prototype.onMouseDown = function(e) {
+	dragParam = {
+		loc: getCanvasLocation(e)
+	};
+};
+
+PathMoveProcessor.prototype.onMouseMove = function(e) {
+	if(undefined == dragParam){
+		return;
+	}
+	loc = getCanvasLocation(e);
+	
+	var dx = loc.x - dragParam.loc.x;
+	var dy = loc.y - dragParam.loc.y;
+	dx = dx / scale;
+	dy = dy / scale;
+	//console.log("drag, dx: " + dx + ", dy: " + dy);
+	if(bezierPathEdting){
+		bezierPathEdting.move(dx, dy);
+	}
+	
+	dragParam = {
+		loc: getCanvasLocation(e)
+	};
+};
+
+PathMoveProcessor.prototype.onMouseUp = function(e) {
+	if(undefined == dragParam){
+		return;
+	}
+	loc = getCanvasLocation(e);
+	var dx = loc.x - dragParam.loc.x;
+	var dy = loc.y - dragParam.loc.y;
+	dx = dx / scale;
+	dy = dy / scale;
+	//console.log("drag, dx: " + dx + ", dy: " + dy);
+	if(bezierPathEdting){
+		bezierPathEdting.move(dx, dy);
+	}
+	
 	dragParam = undefined;
 };

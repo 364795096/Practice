@@ -1,6 +1,43 @@
+// 随机数
 function rand(min, max) {
 	return Math.floor(Math.random() * (max - min + 1) + min);
 }
+// 调试相关
+function getExceptionInfo(e) {
+	var info = "";
+	if (e) {
+		if (e.description) {
+			info += ('[description]' + e.description + "  ");
+		}
+		if (e.message) {
+			info += ('[message]' + e.message);
+		}
+
+	} else {
+		info = "can not get any execption information!";
+	}
+	return info;
+}
+
+// 如需要输出的日志信息失效，将debugPrintEnable赋值为false
+var debugPrintEnable = true;
+
+function debugPrint(type, msg) {
+	if (false == debugPrintEnable) {
+		return;
+	}
+	if ('undefined' == typeof(console)) {
+		return;
+	}
+	if ('log' == type) {
+		console.log(msg);
+	} else if ('warning' == type) {
+		console.warn(msg);
+	} else if ('error' == type) {
+		console.error(msg);
+	}
+}
+
 
 function windowToCanvas(canvas, x, y) {
 	var bbox = canvas.getBoundingClientRect();
@@ -11,51 +48,92 @@ function windowToCanvas(canvas, x, y) {
 	return canvasLoc;
 }
 
+function drawGrid(context, color, stepx, stepy) {
+	context.save();
+	context.strokeStyle = color;
+	context.lineWidth = 0.5;
+
+	for (var i = stepx + 0.5; i < context.canvas.width; i += stepx) {
+		context.beginPath();
+		context.moveTo(i, 0);
+		context.lineTo(i, context.canvas.height);
+		context.stroke();
+		if (0 == ((i - 0.5) / stepx) % 10) {
+			context.save();
+			context.beginPath();
+			context.moveTo(i, 0);
+			context.lineTo(i, stepx * 1.0);
+			context.strokeStyle = "gray";
+			context.stroke();
+			context.restore();
+		}
+	}
+
+	for (var i = stepy + 0.5; i < context.canvas.height; i += stepy) {
+		context.beginPath();
+		context.moveTo(0, i);
+		context.lineTo(context.canvas.width, i);
+		context.stroke();
+
+		if (0 == ((i - 0.5) / stepy) % 10) {
+			context.save();
+			context.beginPath();
+			context.moveTo(0, i);
+			context.lineTo(stepx * 1.0, i);
+			context.strokeStyle = "gray";
+			context.stroke();
+			context.restore();
+		}
+	}
+
+	context.restore();
+}
+
 var swapItems = function(arr, index1, index2) {
 	var temp = arr.splice(index2, 1, arr[index1]);
 	arr[index1] = temp[0];
 	return arr;
 };
 
-var AdvancedArray = function(){
+var AdvancedArray = function() {
 	this.array = [];
 	this.len = 0;
 }
 
-AdvancedArray.prototype.push = function(item){
+AdvancedArray.prototype.push = function(item) {
 	this.array.push(item);
 	this.len = this.array.length;
 }
 
-AdvancedArray.prototype.up = function(index){
-	if(index+1>this.len || index<0){
+AdvancedArray.prototype.up = function(index) {
+	if (index + 1 > this.len || index < 0) {
 		throw "Index exceeded the range!";
 		return;
 	}
-	if(0 < index){
-		swapItems(this.array, index, index-1);
+	if (0 < index) {
+		swapItems(this.array, index, index - 1);
 	}
 }
 
-AdvancedArray.prototype.down = function(index){
-	if(index+1>this.len || index<0){
+AdvancedArray.prototype.down = function(index) {
+	if (index + 1 > this.len || index < 0) {
 		throw "Index exceeded the range!";
 		return;
 	}
-	if(index<this.len-1){
-		swapItems(this.array, index, index+1);
+	if (index < this.len - 1) {
+		swapItems(this.array, index, index + 1);
 	}
 }
 
-AdvancedArray.prototype.get = function(index){
-	if(index+1>this.len || index<0){
+AdvancedArray.prototype.get = function(index) {
+	if (index + 1 > this.len || index < 0) {
 		//throw "Index exceeded the range!";
 		return undefined;
 	}
 	return this.array[index];
 }
 
-AdvancedArray.prototype.length = function(){
+AdvancedArray.prototype.length = function() {
 	return this.array.length;
 }
 

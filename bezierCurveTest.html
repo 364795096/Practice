@@ -13,22 +13,13 @@
 		<script type="text/javascript" src="js/bezierPath.js"></script>
 		<script type="text/javascript" src="js/iconToolBar.js"></script>
 		<script type="text/javascript" src="js/popupWindow.js"></script>
+		<script type="text/javascript" src="js/foldableTooBar.js" ></script>
 		<script src='js/roundedRectangle.js'></script>
 		<script type="text/javascript" src="js/slider.js"></script>
+		<script type="text/javascript" src="js/layer.js" ></script>
 		<script type="text/javascript" src="js/bezierCurveTest.js" ></script>
-		<script>
-			
-			
-			function drawBackground(canvas) {
-				var context = canvas.getContext("2d");
-				context.save();
-				context.fillStyle = 'white';
-				context.fillRect(0, 0, canvas.width, canvas.height);
-				context.strokeStyle = 'red';
-				context.strokeRect(0, 0, canvas.width, canvas.height);
-				context.restore();
-			}
-
+		
+		<script>		
 			function initialize() {
 				var canvas = document.getElementById("canvas");
 				context = canvas.getContext("2d");
@@ -55,7 +46,8 @@
 				interactionProcessor[3] = new colorProcessor();
 				interactionProcessor[4] = new ZoomInProcessor();
 				interactionProcessor[5] = new ZoomOutProcessor();
-				interactionProcessor[6] = new DragProcessor();
+				interactionProcessor[6] = new CanvasDragProcessor();
+				interactionProcessor[7] = new PathMoveProcessor();
 				canvas.onclick = function(e) {
 					if (iconSelectionIndex < interactionProcessor.length) {
 						interactionProcessor[getSelectedIconIndex()].onClick(e);
@@ -103,6 +95,7 @@
 		<div id="pathView" style="overflow: hidden;dispaly: none; height: 0;">
 			<div style="padding: 36px 12px 4px 12px;">
 				<img class="pathOperation" id="add" src="images/pathAdd.png">
+				<img class="pathOperation" id="pathShowSwitch" src="images/pathShow.png">
 				<img class="pathOperation" id="up" src="images/up.png">
 				<img class="pathOperation" id="down" src="images/down.png">
 				<img class="pathOperation" id="left" src="images/left.png">
@@ -112,12 +105,29 @@
 			</div>
 			<div class="pathList" id="pathList">
 				<div class="pathItem selected">
-					<img src="images/pathDemo.png">
+					<img src="images/show.png" class="showSwitch" show="1">
+					<img src="images/pathDemo.png" class="thumbnail">
 					<input type="text" class="title" value="default path">
 					<p style="clear: both;"></p>
 				</div>
 				
 			</div>
+		</div>
+	
+		<!-- 钢笔工具快速操作 -->
+		<div id="penToolQuickOperation" style="dispaly: none; height: 0;">
+			<div id="bezierRegular">
+				<img id="bezierRegular_00" src="images/bezierReglar/bezierRegular_00.png">
+				<img id="bezierRegular_0101" src="images/bezierReglar/bezierRegular_01_01.png">
+				<img id="bezierRegular_0102" src="images/bezierReglar/bezierRegular_01_02.png">
+				<img id="bezierRegular_0201" src="images/bezierReglar/bezierRegular_02_01.png">
+				<img id="bezierRegular_0202" src="images/bezierReglar/bezierRegular_02_02.png">
+				<p style="clear:both"></p>
+			</div>
+			<img id="toolBarDirectionIndicator" class="toolBarDirectionIndicator" src="images/arrowUp.png">
+			<p class="toolBarDirectionIndicatorMakeup"></p>
+			
+				
 		</div>
 		
 	</body>

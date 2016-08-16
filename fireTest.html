@@ -86,14 +86,14 @@
 					this.death = this.life;
 					this.r = 255;
 					this.g = Math.round(Math.random() * 155);
-					this.b = 255;
+					this.b = 0;
 				}
 
 				function ParticleAnimation() {
 					surface.globalCompositeOperation = "source-over";
 					surface.fillStyle = "black";
 					surface.fillRect(0, 0, canvasWidth, canvasHeight);
-					//surface.globalCompositeOperation = "lighter";
+					surface.globalCompositeOperation = "lighter";
 					for (var i = 0; i < particles.length; i++) {
 						var p = particles[i];
 						surface.beginPath();
